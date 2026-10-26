@@ -3,6 +3,8 @@ import {
   DEFAULTS,
   formatClock,
   PREPARE_SECONDS,
+  previousWorkIndex,
+  segmentStart,
   segments,
   stateAt,
   timerFromParams,
@@ -80,6 +82,23 @@ describe("stateAt", () => {
 
   it("never finishes an open-ended For Time", () => {
     expect(stateAt(segments({ mode: "fortime", cap: 0 }), 99_999)).toMatchObject({ done: false, elapsed: 99_999 - PREPARE_SECONDS });
+  });
+});
+
+describe("skipping", () => {
+  // prepare, work1, rest1, work2, rest2, work3
+  const list = segments({ mode: "tabata", work: 20, rest: 10, rounds: 3 });
+
+  it("knows when each segment starts", () => {
+    expect([0, 1, 2, 3].map((i) => segmentStart(list, i))).toEqual([0, PREPARE_SECONDS, PREPARE_SECONDS + 20, PREPARE_SECONDS + 30]);
+    expect(segmentStart(list, list.length)).toBe(PREPARE_SECONDS + 80);
+  });
+
+  it("goes back to the previous work block, skipping rests", () => {
+    expect(previousWorkIndex(list, 5)).toBe(3); // from work3 → work2
+    expect(previousWorkIndex(list, 4)).toBe(3); // from the rest after work2 → work2
+    expect(previousWorkIndex(list, 1)).toBe(0); // from the first block → the countdown
+    expect(previousWorkIndex(list, 0)).toBe(0);
   });
 });
 

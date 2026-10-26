@@ -122,6 +122,22 @@ export function stateAt(list: Segment[], seconds: number): TimerState {
   return { done: true, index: last, segment: list[last], elapsed: list[last].seconds, remaining: 0 };
 }
 
+/** Running time at which segment `index` starts (the end of the workout for list.length). */
+export function segmentStart(list: Segment[], index: number): number {
+  return list.slice(0, index).reduce((sum, s) => sum + s.seconds, 0);
+}
+
+/**
+ * Where "previous" jumps from segment `index`: the start of the last work block before it
+ * (so from a block or the rest after it, you redo the block before), or the first segment.
+ */
+export function previousWorkIndex(list: Segment[], index: number): number {
+  for (let i = index - 1; i >= 0; i--) {
+    if (list[i].phase === "work") return i;
+  }
+  return 0;
+}
+
 /** "m:ss", or "h:mm:ss" past an hour. */
 export function formatClock(totalSeconds: number): string {
   const s = Math.max(0, Math.floor(totalSeconds));

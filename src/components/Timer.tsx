@@ -5,6 +5,8 @@ import {
   DEFAULTS,
   formatClock,
   MAX_GROUPS,
+  previousWorkIndex,
+  segmentStart,
   segments,
   stateAt,
   type Phase,
@@ -335,6 +337,15 @@ function RunningClock({ config, onExit }: { config: TimerConfig; onExit: () => v
     setNow(at);
     setRun({ startedAt: at, banked: run.banked, finished: false });
   }
+  /** Moves to the start of segment `index` (past the last one = finished), keeping running or paused. */
+  function jumpTo(index: number) {
+    const target = segmentStart(list, index);
+    // Skipping an open-ended For Time ends it at the current time.
+    if (!Number.isFinite(target)) return pause(true);
+    const at = performance.now();
+    setNow(at);
+    setRun({ startedAt: run.startedAt === null ? null : at, banked: target, finished: false });
+  }
 
   const phase = state.done ? "done" : state.segment.phase;
   const background = {
@@ -404,6 +415,24 @@ function RunningClock({ config, onExit }: { config: TimerConfig; onExit: () => v
         {run.startedAt === null && !state.done && <p className="mt-6 font-display text-2xl font-bold tracking-widest uppercase opacity-70">En pausa</p>}
       </div>
 
+      {!state.done && (
+        <div className="mb-3 flex gap-3">
+          <button
+            type="button"
+            onClick={() => jumpTo(previousWorkIndex(list, state.index))}
+            className="h-12 flex-1 rounded-xl bg-black/15 font-display text-lg font-bold tracking-wider uppercase"
+          >
+            ⏮ Anterior
+          </button>
+          <button
+            type="button"
+            onClick={() => jumpTo(state.index + 1)}
+            className="h-12 flex-1 rounded-xl bg-black/15 font-display text-lg font-bold tracking-wider uppercase"
+          >
+            Siguiente ⏭
+          </button>
+        </div>
+      )}
       <div className="flex gap-3">
         <button type="button" onClick={onExit} className={`${control} border-2 border-current`}>
           {state.done ? "Volver" : "Cerrar"}

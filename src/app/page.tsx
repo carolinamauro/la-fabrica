@@ -1,17 +1,18 @@
-import { auth } from "@/auth";
 import { AppShell, Message } from "@/components/AppShell";
 import { AnexoView, CrossfitTabs, CrossfitWorkout } from "@/components/CrossfitView";
 import { OpenSheetButton, PersonalizedView } from "@/components/PersonalizedView";
 import { findAthleteByEmail } from "@/lib/athletes";
 import { getCrossfitPlan } from "@/lib/crossfit";
 import { getPersonalizedPlan } from "@/lib/personalized";
+import { getSession } from "@/lib/session";
 
 export default async function HomePage({ searchParams }: PageProps<"/">) {
   const params = await searchParams;
   const param = (key: string) => (typeof params[key] === "string" ? params[key] : undefined);
 
-  const session = await auth();
-  const athlete = session?.user?.email ? await findAthleteByEmail(session.user.email) : null;
+  // Re-checked on every visit: if the coach deactivates an athlete, access stops right away.
+  const session = await getSession();
+  const athlete = session ? await findAthleteByEmail(session.email) : null;
 
   if (!athlete) {
     return (

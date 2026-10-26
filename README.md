@@ -7,9 +7,10 @@ Mobile web app where athletes see their training plan (read from the coach's Goo
 1. Create `.env.local` with:
 
    ```
-   AUTH_SECRET=            # npx auth secret  (or: openssl rand -base64 32)
-   AUTH_GOOGLE_ID=         # Google OAuth client ID
-   AUTH_GOOGLE_SECRET=     # Google OAuth client secret
+   NEXT_PUBLIC_FIREBASE_API_KEY=        # Firebase → Project settings → General → Your apps → Web app config
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=    # e.g. your-project.firebaseapp.com
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID=     # e.g. your-project
+   SESSION_SECRET=                      # random string, 32+ chars: openssl rand -base64 32
 
    GOOGLE_SERVICE_ACCOUNT_EMAIL=        # client_email from the service account JSON key
    GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=  # private_key from the JSON key, on one line with \n
@@ -23,8 +24,9 @@ Mobile web app where athletes see their training plan (read from the coach's Goo
 
    Only emails listed with `Estado = ACTIVO` in the master `ATLETAS` tab can sign in.
 
-   Google OAuth client: Google Cloud Console → APIs & Services → Credentials → Create OAuth client ID → "Web application".
-   Authorized redirect URI: `http://localhost:3000/api/auth/callback/google` (add the Vercel URL later).
+   Login (Firebase): Firebase console → Authentication → Sign-in method → enable **Google**.
+   If the project has no web app yet: Project settings → General → Add app → Web, and copy `apiKey`, `authDomain`, `projectId`.
+   `localhost` is already an authorized domain; nothing else to configure for local use.
 
 2. `npm install`
 3. `npm run dev` → http://localhost:3000
@@ -32,11 +34,8 @@ Mobile web app where athletes see their training plan (read from the coach's Goo
 ## Deploy (Vercel)
 
 1. Push `main` to GitHub, then in Vercel: **Add New → Project → Import** `carolinamauro/la-fabrica` (framework is detected as Next.js).
-2. Before deploying, add the same 7 environment variables as in `.env.local` (Settings → Environment Variables).
-3. After the first deploy, in the Google OAuth client add:
-   - Authorized JavaScript origin: `https://<your-app>.vercel.app`
-   - Authorized redirect URI: `https://<your-app>.vercel.app/api/auth/callback/google`
-4. Google Cloud → OAuth consent screen → **Publish app** ("In production"). While it is in "Testing", only the listed test users can sign in. The app only asks for name and email, so Google doesn't require a review.
+2. Before deploying, add the same 8 environment variables as in `.env.local` (Settings → Environment Variables).
+3. After the first deploy: Firebase console → Authentication → Settings → **Authorized domains** → add `<your-app>.vercel.app`.
 
 Every push to `main` redeploys automatically.
 

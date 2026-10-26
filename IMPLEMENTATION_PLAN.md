@@ -22,7 +22,7 @@ Plus: installable on the home screen (PWA manifest + icon), a "refresh" pull, an
 ## 2. Stack
 
 - Next.js (App Router) + TypeScript + Tailwind (+ a few shadcn/ui components)
-- **Auth.js (NextAuth) with Google** — no database needed. Supabase is not needed for this version.
+- **Firebase Auth with Google** (account chooser) — the server verifies the Firebase token, checks the email in `ATLETAS` and sets its own session cookie. No database needed.
 - `googleapis` with one **service account** (key only on the server, in Vercel env vars)
 - Vercel hosting
 - Vitest for the two parsers
@@ -68,7 +68,8 @@ Phone ──Google login──▶ Next.js on Vercel ──service account (read-
 src/
   app/                 # pages + one API route per screen
   lib/
-    auth.ts            # Auth.js Google config
+    firebase-client.ts # Google sign-in popup (browser)
+    session.ts         # verify Firebase token, session cookie
     sheets.ts          # service account client + cache
     athletes.ts        # email → athlete (master ATLETAS)
     personalized.ts    # BASE_PLANIFICACION → Workout JSON
@@ -94,7 +95,7 @@ type Exercise = { name: string; sets?: string; reps?: string; target?: string; r
 
 | # | Task | Done when |
 |---|---|---|
-| 1 | Scaffold Next.js + Tailwind + Auth.js Google | Can log in on localhost |
+| 1 | Scaffold Next.js + Tailwind + Google login (Firebase) | Can log in on localhost |
 | 2 | Service account + `sheets.ts` + `athletes.ts` | Logged‑in email resolves to the right athlete; unknown email is blocked |
 | 3 | `personalized.ts` + tests | Your file shows the right week/day and exercises, no other athletes' rows |
 | 4 | `crossfit.ts` (+ Anexo) + tests | All 5 days render with blocks and free text |

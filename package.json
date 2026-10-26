@@ -11,8 +11,9 @@
   },
   "dependencies": {
     "@googleapis/sheets": "^18.1.1",
+    "firebase": "^12.19.0",
+    "jose": "^6.2.12",
     "next": "16.4.3",
-    "next-auth": "^5.0.0-beta.32",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

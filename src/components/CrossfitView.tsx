@@ -1,0 +1,100 @@
+import Link from "next/link";
+import type { Anexo, CrossfitPlan } from "@/lib/crossfit";
+import { Chips } from "./Chips";
+import { homeHref, prettyLabel } from "./format";
+import { WorkoutBlocks } from "./WorkoutBlocks";
+
+export type CrossfitTab = "entrenamiento" | "anexo";
+
+/** "PLAN DE GIMNASTICOS" → "Gimnásticos". */
+function planName(title: string) {
+  const name = title.replace(/^PLAN DE\s+/i, "").toLowerCase();
+  const pretty = name === "gimnasticos" ? "gimnásticos" : name;
+  return pretty.charAt(0).toUpperCase() + pretty.slice(1);
+}
+
+export function CrossfitWorkout({ plan }: { plan: CrossfitPlan }) {
+  return (
+    <>
+      <Chips
+        label="Días"
+        items={plan.days.map((day) => ({
+          label: prettyLabel(day),
+          href: homeHref({ day }),
+          active: day === plan.selectedDay,
+        }))}
+      />
+      <h1 className="text-2xl font-bold">
+        {prettyLabel(plan.selectedDay)}
+        {plan.workout.week && <span className="text-muted"> · {prettyLabel(plan.workout.week)}</span>}
+      </h1>
+      <WorkoutBlocks blocks={plan.workout.blocks} />
+    </>
+  );
+}
+
+export function AnexoView({ anexo, planIndex, week }: { anexo: Anexo; planIndex: number; week?: string }) {
+  const plan = anexo.plans[planIndex] ?? anexo.plans[0];
+  if (!plan) return <p className="text-muted">No hay anexo cargado.</p>;
+  const selected = plan.weeks.find((w) => w.week === week) ?? plan.weeks[0];
+  const index = anexo.plans.indexOf(plan);
+
+  return (
+    <>
+      <h1 className="text-2xl font-bold">Anexo</h1>
+      {anexo.intro.length > 0 && (
+        <div className="flex flex-col gap-1 text-sm text-muted">
+          {anexo.intro.map((line, i) => (
+            <p key={i}>{line}</p>
+          ))}
+        </div>
+      )}
+      <Chips
+        label="Planes"
+        items={anexo.plans.map((p, i) => ({
+          label: planName(p.title),
+          href: homeHref({ tab: "anexo", plan: String(i) }),
+          active: i === index,
+        }))}
+      />
+      {selected ? (
+        <>
+          <Chips
+            label="Semanas"
+            items={plan.weeks.map((w) => ({
+              label: prettyLabel(w.week),
+              href: homeHref({ tab: "anexo", plan: String(index), week: w.week }),
+              active: w.week === selected.week,
+            }))}
+          />
+          <WorkoutBlocks blocks={selected.blocks.map((b) => ({ ...b, title: prettyLabel(b.title) }))} />
+        </>
+      ) : (
+        <p className="text-muted">Este plan todavía no tiene semanas cargadas.</p>
+      )}
+    </>
+  );
+}
+
+export function CrossfitTabs({ active }: { active: CrossfitTab }) {
+  const tabs: { id: CrossfitTab; label: string; href: string }[] = [
+    { id: "entrenamiento", label: "Entrenamiento", href: homeHref({}) },
+    { id: "anexo", label: "Anexo", href: homeHref({ tab: "anexo" }) },
+  ];
+  return (
+    <nav aria-label="Secciones" className="grid grid-cols-2 gap-2">
+      {tabs.map((tab) => (
+        <Link
+          key={tab.id}
+          href={tab.href}
+          aria-current={tab.id === active ? "page" : undefined}
+          className={`flex h-12 items-center justify-center rounded-full font-semibold ${
+            tab.id === active ? "bg-foreground text-background" : "bg-card"
+          }`}
+        >
+          {tab.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}

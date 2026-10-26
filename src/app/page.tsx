@@ -1,31 +1,53 @@
-import { auth, signOut } from "@/auth";
+import { auth } from "@/auth";
+import { AppShell, Message } from "@/components/AppShell";
+import { AnexoView, CrossfitTabs, CrossfitWorkout } from "@/components/CrossfitView";
+import { OpenSheetButton, PersonalizedView } from "@/components/PersonalizedView";
+import { findAthleteByEmail } from "@/lib/athletes";
+import { getCrossfitPlan } from "@/lib/crossfit";
+import { getPersonalizedPlan } from "@/lib/personalized";
 
-export default async function HomePage() {
+export default async function HomePage({ searchParams }: PageProps<"/">) {
+  const params = await searchParams;
+  const param = (key: string) => (typeof params[key] === "string" ? params[key] : undefined);
+
   const session = await auth();
+  const athlete = session?.user?.email ? await findAthleteByEmail(session.user.email) : null;
 
-  async function signOutAction() {
-    "use server";
-    await signOut({ redirectTo: "/login" });
+  if (!athlete) {
+    return (
+      <AppShell>
+        <Message title="Tu cuenta no está activa">Pedile a tu coach que revise tu email en la lista de atletas.</Message>
+      </AppShell>
+    );
   }
 
-  return (
-    <main className="flex flex-1 flex-col justify-between px-6 pt-16 pb-12">
-      <div>
-        <p className="text-zinc-600 dark:text-zinc-400">Hola,</p>
-        <h1 className="text-3xl font-bold tracking-tight">{session?.user?.name}</h1>
-        <p className="mt-6 text-zinc-600 dark:text-zinc-400">
-          Pronto vas a ver tu planificación acá.
-        </p>
-      </div>
+  if (athlete.planType === "PERSONALIZED") {
+    const plan = await getPersonalizedPlan(athlete, { week: param("week"), day: param("day") });
+    return (
+      <AppShell
+        name={athlete.firstName}
+        bottom={athlete.spreadsheetId && <OpenSheetButton spreadsheetId={athlete.spreadsheetId} />}
+      >
+        {plan ? (
+          <PersonalizedView plan={plan} />
+        ) : (
+          <Message title="Tu planificación todavía no está lista">Tu coach la está preparando. Volvé a mirar más tarde.</Message>
+        )}
+      </AppShell>
+    );
+  }
 
-      <form action={signOutAction}>
-        <button
-          type="submit"
-          className="h-12 w-full rounded-full border border-zinc-300 font-medium dark:border-zinc-700"
-        >
-          Cerrar sesión
-        </button>
-      </form>
-    </main>
+  const tab = param("tab") === "anexo" ? "anexo" : "entrenamiento";
+  const plan = await getCrossfitPlan(param("day"));
+  return (
+    <AppShell name={athlete.firstName} bottom={<CrossfitTabs active={tab} />}>
+      {!plan ? (
+        <Message title="Todavía no hay entrenamientos cargados" />
+      ) : tab === "anexo" ? (
+        <AnexoView anexo={plan.anexo} planIndex={Number(param("plan") ?? 0)} week={param("week")} />
+      ) : (
+        <CrossfitWorkout plan={plan} />
+      )}
+    </AppShell>
   );
 }

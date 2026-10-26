@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
-/* One dark "training floor" theme: charcoal, chalk white and Mars orange (no light mode). */
+/* One dark theme taken from the La Fábrica logo: black, teal and brushed silver (no light mode). */
 :root {
-  --background: #0e0e0f;
-  --foreground: #f3f1ec;
-  --card: #17171a;
-  --card-raised: #1f1f23;
-  --muted: #8f8b85;
-  --line: #2a2a2f;
-  --accent: #ff5a1f;
-  --accent-soft: rgb(255 90 31 / 0.14);
-  --ok: #3ddc84;
+  --background: #0a0c0c;
+  --foreground: #eef2f2;
+  --card: #121616;
+  --card-raised: #191e1e;
+  --muted: #8a9496;
+  --line: #242b2c;
+  --accent: #14d2bd;
+  --accent-soft: rgb(20 210 189 / 0.13);
+  --silver: #b9c0c2;
   color-scheme: dark;
 }
 
@@ -23,14 +23,14 @@
   --color-line: var(--line);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
-  --color-ok: var(--ok);
+  --color-silver: var(--silver);
   --font-sans: var(--font-barlow);
   --font-display: var(--font-barlow-condensed);
 }
 
 body {
   background:
-    radial-gradient(120% 60% at 50% -10%, rgb(255 90 31 / 0.1), transparent 60%),
+    radial-gradient(120% 60% at 50% -10%, rgb(20 210 189 / 0.09), transparent 60%),
     var(--background);
   background-attachment: fixed;
   color: var(--foreground);

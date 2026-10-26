@@ -16,11 +16,11 @@ const barlowCondensed = Barlow_Condensed({
 });
 
 export const metadata: Metadata = {
-  title: "MARTE Training",
+  title: "La Fábrica",
   description: "Tu planificación de entrenamiento",
-  applicationName: "MARTE",
+  applicationName: "La Fábrica",
   // iOS "Add to Home Screen": open full screen with its own name and icon.
-  appleWebApp: { capable: true, title: "MARTE", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "La Fábrica", statusBarStyle: "black-translucent" },
   icons: { apple: "/apple-touch-icon.png" },
 };
 
@@ -28,7 +28,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#0e0e0f",
+  themeColor: "#0a0c0c",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

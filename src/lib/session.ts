@@ -1,7 +1,7 @@
 import { createRemoteJWKSet, jwtVerify, SignJWT } from "jose";
 import { cookies } from "next/headers";
 
-export const SESSION_COOKIE = "marte_session";
+export const SESSION_COOKIE = "lafabrica_session";
 const SESSION_DAYS = 30;
 
 // Public keys Firebase uses to sign ID tokens.

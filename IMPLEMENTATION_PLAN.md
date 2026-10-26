@@ -1,4 +1,4 @@
-# MARTE Training App — Implementation Plan (simple MVP)
+# La Fábrica App — Implementation Plan (simple MVP)
 
 **Goal:** athletes open an app on their phone and see their training in a clean, readable way instead of a spreadsheet.
 

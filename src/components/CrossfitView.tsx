@@ -14,14 +14,14 @@ function planName(title: string) {
   return pretty.charAt(0).toUpperCase() + pretty.slice(1);
 }
 
-export function CrossfitWorkout({ plan }: { plan: CrossfitPlan }) {
+export function CrossfitWorkout({ plan, path = "/" }: { plan: CrossfitPlan; path?: string }) {
   return (
     <>
       <Chips
         label="Días"
         items={plan.days.map((day) => ({
           label: prettyLabel(day),
-          href: homeHref({ day }),
+          href: homeHref({ day }, path),
           active: day === plan.selectedDay,
         }))}
       />
@@ -31,7 +31,17 @@ export function CrossfitWorkout({ plan }: { plan: CrossfitPlan }) {
   );
 }
 
-export function AnexoView({ anexo, planIndex, week }: { anexo: Anexo; planIndex: number; week?: string }) {
+export function AnexoView({
+  anexo,
+  planIndex,
+  week,
+  path = "/",
+}: {
+  anexo: Anexo;
+  planIndex: number;
+  week?: string;
+  path?: string;
+}) {
   const plan = anexo.plans[planIndex] ?? anexo.plans[0];
   if (!plan) return <p className="text-muted">No hay anexo cargado.</p>;
   const selected = plan.weeks.find((w) => w.week === week) ?? plan.weeks[0];
@@ -51,7 +61,7 @@ export function AnexoView({ anexo, planIndex, week }: { anexo: Anexo; planIndex:
         label="Planes"
         items={anexo.plans.map((p, i) => ({
           label: planName(p.title),
-          href: homeHref({ tab: "anexo", plan: String(i) }),
+          href: homeHref({ tab: "anexo", plan: String(i) }, path),
           active: i === index,
         }))}
       />
@@ -61,7 +71,7 @@ export function AnexoView({ anexo, planIndex, week }: { anexo: Anexo; planIndex:
             label="Semanas"
             items={plan.weeks.map((w) => ({
               label: prettyLabel(w.week),
-              href: homeHref({ tab: "anexo", plan: String(index), week: w.week }),
+              href: homeHref({ tab: "anexo", plan: String(index), week: w.week }, path),
               active: w.week === selected.week,
             }))}
           />
@@ -74,10 +84,10 @@ export function AnexoView({ anexo, planIndex, week }: { anexo: Anexo; planIndex:
   );
 }
 
-export function CrossfitTabs({ active }: { active: CrossfitTab }) {
+export function CrossfitTabs({ active, path = "/" }: { active: CrossfitTab; path?: string }) {
   const tabs: { id: CrossfitTab; label: string; href: string }[] = [
-    { id: "entrenamiento", label: "Entrenamiento", href: homeHref({}) },
-    { id: "anexo", label: "Anexo", href: homeHref({ tab: "anexo" }) },
+    { id: "entrenamiento", label: "Entrenamiento", href: homeHref({}, path) },
+    { id: "anexo", label: "Anexo", href: homeHref({ tab: "anexo" }, path) },
   ];
   return (
     <nav aria-label="Secciones" className="grid grid-cols-2 gap-2">

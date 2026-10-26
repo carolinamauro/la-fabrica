@@ -37,7 +37,7 @@ function SavedSummary({ rows }: { rows: Row[] }) {
       {filled.map(({ row, set }) => (
         <span
           key={set}
-          className="rounded-md border border-ok/30 bg-ok/10 px-2 py-0.5 font-display text-base font-bold text-ok tabular-nums"
+          className="rounded-md border border-silver/30 bg-silver/10 px-2 py-0.5 font-display text-base font-bold text-silver tabular-nums"
         >
           <span className="mr-1 text-xs opacity-70">S{set}</span>
           {row.load && (

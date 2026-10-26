@@ -1,4 +1,4 @@
-# MARTE Training
+# La Fábrica
 
 Mobile web app where athletes see their training plan (read from the coach's Google Sheets). See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
 
@@ -18,9 +18,10 @@ Mobile web app where athletes see their training plan (read from the coach's Goo
    CROSSFIT_SPREADSHEET_ID=             # ID of the shared CrossFit file
    ```
 
-   Service account: Google Cloud Console → enable **Google Sheets API** → IAM → Service accounts → create one → Keys → Add key (JSON).
+   Service account: Google Cloud Console → enable **Google Sheets API** and **Google Drive API** (Drive is only used to read who the CrossFit file is shared with) → IAM → Service accounts → create one → Keys → Add key (JSON).
    Share the master file and the CrossFit file with the service account email as **Viewer**, and the athletes' folder as **Editor** (the app appends results to each athlete's `REGISTRO_PLANIFICACION`).
    The master must be a native Google Sheet (not an uploaded `.xlsx`).
+   Athletes with a personalized plan also get a **CrossFit** tab when the CrossFit file is shared with their Google email (or their domain, or by link). If Drive only lets Viewers see part of the sharing list, make the service account an **Editor** of the CrossFit file.
 
    Only emails listed with `Estado = ACTIVO` in the master `ATLETAS` tab can sign in.
 

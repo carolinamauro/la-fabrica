@@ -25,19 +25,27 @@ function requireEnv(name: string): string {
   return value;
 }
 
-function getClient(): sheets_v4.Sheets {
-  client ??= sheets({
-    version: "v4",
-    auth: new auth.GoogleAuth({
-      credentials: {
-        client_email: requireEnv("GOOGLE_SERVICE_ACCOUNT_EMAIL"),
-        // Vercel and .env files store the key on one line with literal "\n".
-        private_key: requireEnv("GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY").replace(/\\n/g, "\n"),
-      },
+let googleAuth: InstanceType<typeof auth.GoogleAuth> | undefined;
+
+function getAuth() {
+  googleAuth ??= new auth.GoogleAuth({
+    credentials: {
+      client_email: requireEnv("GOOGLE_SERVICE_ACCOUNT_EMAIL"),
+      // Vercel and .env files store the key on one line with literal "\n".
+      private_key: requireEnv("GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY").replace(/\\n/g, "\n"),
+    },
+    scopes: [
       // Write access is only used to append results to REGISTRO_PLANIFICACION.
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    }),
+      "https://www.googleapis.com/auth/spreadsheets",
+      // Who a file is shared with (to offer the CrossFit plan to athletes who have it).
+      "https://www.googleapis.com/auth/drive.metadata.readonly",
+    ],
   });
+  return googleAuth;
+}
+
+function getClient(): sheets_v4.Sheets {
+  client ??= sheets({ version: "v4", auth: getAuth() });
   return client;
 }
 
@@ -76,6 +84,25 @@ export function readHiddenColumns(spreadsheetId: string, sheetName: string): Pro
       })
       .then((res) => (res.data.sheets?.[0]?.data?.[0]?.columnMetadata ?? []).map((c) => Boolean(c.hiddenByUser))),
   );
+}
+
+export type Sharing = { type: string; emailAddress?: string; domain?: string };
+
+/** Who a Drive file is shared with (Drive API v3 permissions), cached for CACHE_TTL_MS. */
+export function readSharing(fileId: string): Promise<Sharing[]> {
+  return cached(`sharing:${fileId}`, async () => {
+    const result: Sharing[] = [];
+    let pageToken: string | undefined;
+    do {
+      const res = await getAuth().request<{ permissions?: Sharing[]; nextPageToken?: string }>({
+        url: `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/permissions`,
+        params: { fields: "nextPageToken,permissions(type,emailAddress,domain)", pageSize: 100, supportsAllDrives: true, pageToken },
+      });
+      result.push(...(res.data.permissions ?? []));
+      pageToken = res.data.nextPageToken;
+    } while (pageToken);
+    return result;
+  });
 }
 
 export function getMasterSpreadsheetId(): string {

@@ -12,8 +12,8 @@ export function Chips({ items, label }: { items: Chip[]; label: string }) {
             <Link
               href={item.href}
               aria-current={item.active ? "page" : undefined}
-              className={`flex h-10 items-center rounded-full px-4 text-sm font-medium ${
-                item.active ? "bg-foreground text-background" : "border border-line bg-card"
+              className={`flex h-10 items-center rounded-lg px-4 font-display text-base font-bold tracking-wider uppercase ${
+                item.active ? "bg-accent text-background" : "border border-line bg-card text-muted"
               }`}
             >
               {item.label}

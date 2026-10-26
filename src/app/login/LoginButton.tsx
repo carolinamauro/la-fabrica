@@ -50,7 +50,7 @@ export function LoginButton() {
   return (
     <div className="flex flex-col gap-4">
       {status.kind === "error" && (
-        <p role="alert" className="rounded-2xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-200">
+        <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300">
           {status.message}
         </p>
       )}
@@ -58,7 +58,7 @@ export function LoginButton() {
         type="button"
         onClick={login}
         disabled={status.kind === "loading"}
-        className="h-14 w-full rounded-full bg-foreground text-lg font-medium text-background disabled:opacity-60"
+        className="h-14 w-full rounded-xl bg-accent font-display text-xl font-extrabold tracking-wider text-background uppercase active:translate-y-px disabled:opacity-60"
       >
         {status.kind === "loading" ? "Ingresando…" : "Continuar con Google"}
       </button>

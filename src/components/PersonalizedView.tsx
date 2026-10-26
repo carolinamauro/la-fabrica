@@ -1,9 +1,29 @@
 import type { PersonalizedPlan } from "@/lib/personalized";
 import { resultKey, setCount, type SavedResults } from "@/lib/results";
+import type { Block } from "@/lib/types";
 import { Chips } from "./Chips";
+import { DayTitle } from "./DayTitle";
 import { homeHref, prettyLabel } from "./format";
 import { SetLogger } from "./SetLogger";
 import { WorkoutBlocks } from "./WorkoutBlocks";
+
+/** "3/8" logged series of the block, green once every prescribed series is in. */
+function BlockProgress({ block, saved }: { block: Block; saved: SavedResults }) {
+  const total = block.exercises.reduce((sum, e) => sum + setCount(e.sets), 0);
+  const done = block.exercises.reduce((sum, e) => sum + (saved[resultKey(e.name)]?.length ?? 0), 0);
+  if (!total) return null;
+  const complete = done >= total;
+  return (
+    <span
+      className={`shrink-0 rounded-md px-2 py-1 font-display text-base font-bold tabular-nums ${
+        complete ? "bg-ok/15 text-ok" : done ? "bg-accent-soft text-accent" : "text-muted"
+      }`}
+    >
+      {complete ? "✓ " : ""}
+      {done}/{total}
+    </span>
+  );
+}
 
 export function PersonalizedView({ plan, saved }: { plan: PersonalizedPlan; saved: SavedResults }) {
   const { weeks, selected, workout } = plan;
@@ -27,11 +47,10 @@ export function PersonalizedView({ plan, saved }: { plan: PersonalizedPlan; save
           active: day === selected.day,
         }))}
       />
-      <h1 className="text-2xl font-bold">
-        {prettyLabel(selected.week)} · {prettyLabel(selected.day)}
-      </h1>
+      <DayTitle eyebrow={prettyLabel(selected.week)} title={prettyLabel(selected.day)} />
       <WorkoutBlocks
         blocks={workout.blocks}
+        renderAside={(block) => <BlockProgress block={block} saved={saved} />}
         renderExtra={(exercise) => (
           <SetLogger
             // Remount when the day changes so inputs show that day's values.

@@ -22,3 +22,7 @@ export type Workout = { week: string; day: string; blocks: Block[] };
 export type WeekSummary = { week: string; days: string[] };
 
 export type DaySelection = { week: string; day: string };
+
+// MI_PLANIFICACION has 6 SERIE groups (Carga + Reps, columns I–T).
+// Lives here, not in results.ts, so client components can use it without bundling the Sheets client.
+export const MAX_SETS = 6;

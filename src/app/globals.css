@@ -1,40 +1,43 @@
 @import "tailwindcss";
 
+/* One dark "training floor" theme: charcoal, chalk white and Mars orange (no light mode). */
 :root {
-  --background: #f6f5f3;
-  --foreground: #171717;
-  --card: #ffffff;
-  --muted: #6b6b6b;
-  --line: #e7e5e2;
-  --accent: #d9481e;
-  --accent-soft: #fbe7df;
+  --background: #0e0e0f;
+  --foreground: #f3f1ec;
+  --card: #17171a;
+  --card-raised: #1f1f23;
+  --muted: #8f8b85;
+  --line: #2a2a2f;
+  --accent: #ff5a1f;
+  --accent-soft: rgb(255 90 31 / 0.14);
+  --ok: #3ddc84;
+  color-scheme: dark;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
+  --color-card-raised: var(--card-raised);
   --color-muted: var(--muted);
   --color-line: var(--line);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
-  --font-sans: var(--font-geist-sans);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0d0d0d;
-    --foreground: #ededed;
-    --card: #1a1a1a;
-    --muted: #9a9a9a;
-    --line: #2a2a2a;
-    --accent: #ff6a3d;
-    --accent-soft: #3a1d13;
-  }
+  --color-ok: var(--ok);
+  --font-sans: var(--font-barlow);
+  --font-display: var(--font-barlow-condensed);
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgb(255 90 31 / 0.1), transparent 60%),
+    var(--background);
+  background-attachment: fixed;
   color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-barlow), system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+summary::-webkit-details-marker {
+  display: none;
 }

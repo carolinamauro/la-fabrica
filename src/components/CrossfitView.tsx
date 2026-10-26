@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Anexo, CrossfitPlan } from "@/lib/crossfit";
 import { Chips } from "./Chips";
+import { DayTitle } from "./DayTitle";
 import { homeHref, prettyLabel } from "./format";
 import { WorkoutBlocks } from "./WorkoutBlocks";
 
@@ -24,10 +25,7 @@ export function CrossfitWorkout({ plan }: { plan: CrossfitPlan }) {
           active: day === plan.selectedDay,
         }))}
       />
-      <h1 className="text-2xl font-bold">
-        {prettyLabel(plan.selectedDay)}
-        {plan.workout.week && <span className="text-muted"> · {prettyLabel(plan.workout.week)}</span>}
-      </h1>
+      <DayTitle eyebrow={plan.workout.week && prettyLabel(plan.workout.week)} title={prettyLabel(plan.selectedDay)} />
       <WorkoutBlocks blocks={plan.workout.blocks} />
     </>
   );
@@ -41,7 +39,7 @@ export function AnexoView({ anexo, planIndex, week }: { anexo: Anexo; planIndex:
 
   return (
     <>
-      <h1 className="text-2xl font-bold">Anexo</h1>
+      <DayTitle eyebrow="Fuerza y técnica" title="Anexo" />
       {anexo.intro.length > 0 && (
         <div className="flex flex-col gap-1 text-sm text-muted">
           {anexo.intro.map((line, i) => (
@@ -88,8 +86,8 @@ export function CrossfitTabs({ active }: { active: CrossfitTab }) {
           key={tab.id}
           href={tab.href}
           aria-current={tab.id === active ? "page" : undefined}
-          className={`flex h-12 items-center justify-center rounded-full font-semibold ${
-            tab.id === active ? "bg-foreground text-background" : "bg-card"
+          className={`flex h-12 items-center justify-center rounded-lg font-display text-lg font-bold tracking-wider uppercase ${
+            tab.id === active ? "bg-accent text-background" : "border border-line bg-card text-muted"
           }`}
         >
           {tab.label}

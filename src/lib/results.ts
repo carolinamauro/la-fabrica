@@ -1,13 +1,13 @@
 import type { Athlete } from "./athletes";
 import { buildWorkout, parsePlanRows, PLAN_RANGE } from "./personalized";
 import { appendRows, readRange } from "./sheets";
-import type { DaySelection, Exercise } from "./types";
+import { MAX_SETS, type DaySelection, type Exercise } from "./types";
+
+export { MAX_SETS };
 
 // Results log read by the coach's DASHBOARD and HISTORIAL tabs.
 const REGISTRO_RANGE = "REGISTRO_PLANIFICACION!A:P";
 const CATALOG_RANGE = "CATALOGO_EJERCICIOS!A:Z";
-// MI_PLANIFICACION has 6 SERIE groups (Carga + Reps, columns I–T).
-export const MAX_SETS = 6;
 const TIME_ZONE = "America/Argentina/Buenos_Aires";
 
 export type SetResult = { set: number; load?: number; reps?: number };
@@ -136,9 +136,10 @@ export class ResultError extends Error {}
 
 export type SaveInput = DaySelection & { name: string; order?: string; sets: SetResult[] };
 
-function validSet({ set, load, reps }: SetResult, maxSet: number) {
+// The athlete can log more series than prescribed, up to the 6 Carga/Reps pairs of the sheet.
+function validSet({ set, load, reps }: SetResult) {
   const inRange = (value: number | undefined, max: number) => value === undefined || (value >= 0 && value <= max);
-  return Number.isInteger(set) && set >= 1 && set <= maxSet && inRange(load, 1000) && inRange(reps, 1000);
+  return Number.isInteger(set) && set >= 1 && set <= MAX_SETS && inRange(load, 1000) && inRange(reps, 1000);
 }
 
 /**
@@ -156,8 +157,7 @@ export async function saveResults(athlete: Athlete, input: SaveInput): Promise<n
     .find((e) => label(e.name) === label(input.name) && (e.order ?? "") === (input.order ?? ""));
   if (!exercise) throw new ResultError("Este ejercicio ya no está en tu planificación. Actualizá la página.");
 
-  const maxSet = setCount(exercise.sets);
-  if (!input.sets.every((s) => validSet(s, maxSet))) throw new ResultError("Revisá los valores cargados.");
+  if (!input.sets.every(validSet)) throw new ResultError("Revisá los valores cargados.");
 
   const [registro, catalog] = await Promise.all([readRange(id, REGISTRO_RANGE), readRange(id, CATALOG_RANGE)]);
   const rows = buildResultRows({

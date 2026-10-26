@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { signOutAction } from "@/app/actions";
 import { LogoMark, Wordmark } from "./Brand";
@@ -22,16 +23,24 @@ export function AppShell({
       {/* The iOS status bar is translucent, so the header pads itself below the notch. */}
       <header className="sticky top-0 z-10 border-b border-line bg-background/90 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="flex h-14 items-center justify-between px-4">
-          <div className="flex min-w-0 items-center gap-2">
+          <Link href="/" className="flex min-w-0 items-center gap-2">
             <LogoMark size={34} />
             <Wordmark className="text-xl whitespace-nowrap" />
             {name && <span className="truncate pl-1 text-sm text-muted">Hola, {name}</span>}
+          </Link>
+          <div className="flex shrink-0 items-center gap-1">
+            <Link href="/timer" aria-label="Timer" className="grid size-10 place-items-center rounded-lg text-accent">
+              <svg viewBox="0 0 24 24" aria-hidden className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <circle cx="12" cy="13" r="8" />
+                <path d="M12 9v4l2.5 2.5M10 2h4M12 2v3" />
+              </svg>
+            </Link>
+            <form action={signOutAction}>
+              <button type="submit" className="h-10 px-1 font-display text-sm font-bold tracking-wider text-muted uppercase">
+                Salir
+              </button>
+            </form>
           </div>
-          <form action={signOutAction}>
-            <button type="submit" className="h-10 px-1 font-display text-sm font-bold tracking-wider text-muted uppercase">
-              Salir
-            </button>
-          </form>
         </div>
         {nav}
       </header>

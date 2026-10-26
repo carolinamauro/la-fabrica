@@ -1,5 +1,8 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
+import { timerFromText, timerParams } from "@/lib/timer";
 import type { Block, Exercise } from "@/lib/types";
+import { homeHref } from "./format";
 
 /** Extra content under an exercise (e.g. the Carga/Reps logger of personalized plans). */
 type RenderExtra = (exercise: Exercise) => ReactNode;
@@ -21,6 +24,20 @@ function LinkedText({ text }: { text: string }) {
     ) : (
       part
     ),
+  );
+}
+
+/** "▶ Timer" next to a line that names one ("EMOM X 15 MIN"), opening /timer already set up. */
+function TimerLink({ text }: { text: string }) {
+  const config = timerFromText(text);
+  if (!config) return null;
+  return (
+    <Link
+      href={homeHref(timerParams(config), "/timer")}
+      className="ml-2 inline-flex h-8 items-center gap-1 rounded-md bg-accent px-2.5 align-middle font-display text-sm font-extrabold tracking-wider text-background uppercase"
+    >
+      ▶ Timer
+    </Link>
   );
 }
 
@@ -50,12 +67,15 @@ function ExerciseItem({ exercise, extra }: { exercise: Exercise; extra?: RenderE
   const { name, order, sets, reps, target, rest, interval, notes } = exercise;
   const volume = sets && reps ? `${sets}×${reps}` : sets ? `${sets} series` : reps;
   const tags = [target, interval].filter(Boolean);
+  // "C. EMOM X 15 MIN" can be the name itself, or the INTERVALO column of a personalized plan.
+  const timerText = [name, interval].find((text) => text && timerFromText(text));
 
   // A line with nothing next to it is plain programming text (CrossFit).
   if (!volume && !tags.length && !rest && !notes && !order) {
     return (
       <li className={`py-2 ${SECTION.test(name) ? "pt-4 font-display text-lg font-bold tracking-wide text-accent first:pt-2" : ""}`}>
         <LinkedText text={name} />
+        <TimerLink text={name} />
       </li>
     );
   }
@@ -73,7 +93,7 @@ function ExerciseItem({ exercise, extra }: { exercise: Exercise; extra?: RenderE
           <p className="shrink-0 font-display text-2xl leading-none font-extrabold tabular-nums">{volume}</p>
         )}
       </div>
-      {(tags.length > 0 || rest) && (
+      {(tags.length > 0 || rest || timerText) && (
         <div className="mt-2 flex flex-wrap gap-1.5 text-sm">
           {tags.map((tag) => (
             <span key={tag} className="rounded-md bg-accent-soft px-2 py-0.5 font-semibold text-accent">
@@ -81,6 +101,7 @@ function ExerciseItem({ exercise, extra }: { exercise: Exercise; extra?: RenderE
             </span>
           ))}
           {rest && <span className="rounded-md bg-card-raised px-2 py-0.5 font-medium text-muted">Pausa {rest}</span>}
+          {timerText && <TimerLink text={timerText} />}
         </div>
       )}
       {notes && (
@@ -132,6 +153,7 @@ export function WorkoutBlocks({
                       className={`py-2 ${SECTION.test(line) ? "font-display text-lg font-bold tracking-wide text-accent" : ""}`}
                     >
                       <LinkedText text={line} />
+                      <TimerLink text={line} />
                     </li>
                   ))}
                 </ul>

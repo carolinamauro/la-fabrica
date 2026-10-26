@@ -1,6 +1,8 @@
 import { signIn } from "@/auth";
 
-export default function LoginPage() {
+export default async function LoginPage({ searchParams }: PageProps<"/login">) {
+  const { error } = await searchParams;
+
   async function signInWithGoogle() {
     "use server";
     await signIn("google", { redirectTo: "/" });
@@ -15,14 +17,24 @@ export default function LoginPage() {
         </p>
       </div>
 
-      <form action={signInWithGoogle}>
+      <div className="flex flex-col gap-4">
+        {error && (
+          <p role="alert" className="rounded-2xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-200">
+            {error === "AccessDenied"
+              ? "Tu email no está habilitado. Pedile a tu coach que te agregue."
+              : "No pudimos iniciar sesión. Probá de nuevo."}
+          </p>
+        )}
+
+        <form action={signInWithGoogle}>
         <button
           type="submit"
           className="h-14 w-full rounded-full bg-foreground text-lg font-medium text-background"
         >
           Continuar con Google
         </button>
-      </form>
+        </form>
+      </div>
     </main>
   );
 }

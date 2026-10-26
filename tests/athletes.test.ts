@@ -20,6 +20,7 @@ describe("parseAthletes", () => {
       email: "ana.test@gmail.com",
       planType: "PERSONALIZED",
       spreadsheetId: "abc_DEF-123",
+      bodyWeightKg: 60,
     });
   });
 

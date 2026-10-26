@@ -2,7 +2,7 @@
 
 **Goal:** athletes open an app on their phone and see their training in a clean, readable way instead of a spreadsheet.
 
-**Principle:** the coach and the athletes keep using Google Sheets exactly as today. The app **only reads** — it never writes, so it can't break formulas, scripts, `REGISTRO_PLANIFICACION` or `CONTROL_SESIONES`. Logging results stays in the sheet (`MI_PLANIFICACION`) for now.
+**Principle:** the coach keeps working in Google Sheets exactly as today. The app reads the plans and writes in only one place: it **appends** the athlete's Carga/Reps per series to their `REGISTRO_PLANIFICACION`, in the same format the sheet already uses, so `DASHBOARD` and `HISTORIAL` keep working. It never edits existing cells, formulas or `MI_PLANIFICACION`.
 
 ---
 
@@ -17,7 +17,9 @@
 
 Plus: installable on the home screen (PWA manifest + icon), a "refresh" pull, and a button "Abrir mi planilla" that opens the athlete's sheet to log loads as they do today.
 
-**Not in this version:** logging from the app, offline mode, coach screens, payment lock, any database.
+**Logging (FUERZA):** under each exercise, one row per series (up to 6, like `MI_PLANIFICACION` I–T) with **Carga** and **Reps**, and a **Guardar** button. Saved values are prefilled; a correction is a new row (latest wins). E1RM / RATIO_BW are filled for exercises the catalog marks with `E1RM = SI`.
+
+**Not in this version:** offline mode, marking the session complete (`CONTROL_SESIONES`), coach screens, payment lock, any database.
 
 ## 2. Stack
 
@@ -41,7 +43,7 @@ Phone ──Google login──▶ Next.js on Vercel ──service account (read-
 4. Server reads the sheet, converts it into simple JSON, and sends **only that athlete's workout** to the phone.
 5. Data is cached ~60 s, so when the coach edits the sheet, athletes see it in about a minute.
 
-**Access setup (one time):** create a service account, share the master file, the CrossFit file and the folder with all athlete files with it as **Viewer**.
+**Access setup (one time):** create a service account, share the master file and the CrossFit file with it as **Viewer**, and the folder with all athlete files as **Editor**.
 
 ## 4. Reading the sheets
 
@@ -87,7 +89,8 @@ type Exercise = { name: string; sets?: string; reps?: string; target?: string; r
 
 ## 6. Security (the minimum that matters)
 
-- Service account key only on the server; the account is **Viewer** only.
+- Service account key only on the server; it can edit athlete files, but the app only appends rows to `REGISTRO_PLANIFICACION`.
+- Results are saved for the signed-in athlete only, and only for exercises in their plan for that week/day; values are range-checked on the server.
 - The athlete is always resolved from the login email, never from the URL.
 - The phone only receives that athlete's workout — never raw rows, other athletes, or emails.
 
@@ -106,6 +109,6 @@ Rough size: a few days of work.
 
 ## 8. Later (only if needed)
 
-- Log loads/reps from the app (would write into the sheet; needs the existing Apps Script reviewed first so nothing duplicates).
+- Mark the session as completed from the app (`CONTROL_SESIONES`).
 - Email‑code login for athletes without Google.
 - Offline viewing.

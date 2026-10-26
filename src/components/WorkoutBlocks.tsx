@@ -1,4 +1,8 @@
+import type { ReactNode } from "react";
 import type { Block, Exercise } from "@/lib/types";
+
+/** Extra content under an exercise (e.g. the Carga/Reps inputs of personalized plans). */
+type RenderExtra = (exercise: Exercise) => ReactNode;
 
 // Section headers in free text: "A. 3 RONDAS:", "C. EMOM X 15 MIN".
 const SECTION = /^[A-Z]\d?\s*[.:]\s|:$/;
@@ -23,7 +27,7 @@ function blockTitle(title: string) {
   return /^[A-Z]{1,2}$/.test(title) ? `Bloque ${title}` : title;
 }
 
-function ExerciseItem({ exercise }: { exercise: Exercise }) {
+function ExerciseItem({ exercise, extra }: { exercise: Exercise; extra?: RenderExtra }) {
   const { name, order, sets, reps, target, rest, interval, notes } = exercise;
   const volume = sets && reps ? `${sets} × ${reps}` : sets ? `${sets} series` : reps;
   const details = [volume, target, interval].filter(Boolean);
@@ -58,11 +62,12 @@ function ExerciseItem({ exercise }: { exercise: Exercise }) {
           <LinkedText text={notes} />
         </p>
       )}
+      {extra?.(exercise)}
     </li>
   );
 }
 
-export function WorkoutBlocks({ blocks }: { blocks: Block[] }) {
+export function WorkoutBlocks({ blocks, renderExtra }: { blocks: Block[]; renderExtra?: RenderExtra }) {
   if (!blocks.length) {
     return <p className="rounded-2xl bg-card p-5 text-muted">No hay ejercicios cargados para este día.</p>;
   }
@@ -86,7 +91,7 @@ export function WorkoutBlocks({ blocks }: { blocks: Block[] }) {
           {block.exercises.length > 0 && (
             <ul className="divide-y divide-line">
               {block.exercises.map((exercise, j) => (
-                <ExerciseItem key={j} exercise={exercise} />
+                <ExerciseItem key={j} exercise={exercise} extra={renderExtra} />
               ))}
             </ul>
           )}

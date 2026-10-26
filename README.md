@@ -19,7 +19,7 @@ Mobile web app where athletes see their training plan (read from the coach's Goo
    ```
 
    Service account: Google Cloud Console → enable **Google Sheets API** → IAM → Service accounts → create one → Keys → Add key (JSON).
-   Share the master file, the CrossFit file and the athletes' folder with the service account email as **Viewer**.
+   Share the master file and the CrossFit file with the service account email as **Viewer**, and the athletes' folder as **Editor** (the app appends results to each athlete's `REGISTRO_PLANIFICACION`).
    The master must be a native Google Sheet (not an uploaded `.xlsx`).
 
    Only emails listed with `Estado = ACTIVO` in the master `ATLETAS` tab can sign in.

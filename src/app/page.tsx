@@ -1,9 +1,10 @@
 import { AppShell, Message } from "@/components/AppShell";
 import { AnexoView, CrossfitTabs, CrossfitWorkout } from "@/components/CrossfitView";
-import { OpenSheetButton, PersonalizedView } from "@/components/PersonalizedView";
+import { PersonalizedView } from "@/components/PersonalizedView";
 import { findAthleteByEmail } from "@/lib/athletes";
 import { getCrossfitPlan } from "@/lib/crossfit";
 import { getPersonalizedPlan } from "@/lib/personalized";
+import { getSavedResults } from "@/lib/results";
 import { getSession } from "@/lib/session";
 
 export default async function HomePage({ searchParams }: PageProps<"/">) {
@@ -24,13 +25,11 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
 
   if (athlete.planType === "PERSONALIZED") {
     const plan = await getPersonalizedPlan(athlete, { week: param("week"), day: param("day") });
+    const saved = plan ? await getSavedResults(athlete, plan.selected) : {};
     return (
-      <AppShell
-        name={athlete.firstName}
-        bottom={athlete.spreadsheetId && <OpenSheetButton spreadsheetId={athlete.spreadsheetId} />}
-      >
+      <AppShell name={athlete.firstName}>
         {plan ? (
-          <PersonalizedView plan={plan} />
+          <PersonalizedView plan={plan} saved={saved} />
         ) : (
           <Message title="Tu planificación todavía no está lista">Tu coach la está preparando. Volvé a mirar más tarde.</Message>
         )}

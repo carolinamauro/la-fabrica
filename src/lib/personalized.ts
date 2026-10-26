@@ -2,7 +2,7 @@ import type { Athlete } from "./athletes";
 import { readRange } from "./sheets";
 import type { Block, DaySelection, Exercise, WeekSummary, Workout } from "./types";
 
-const PLAN_RANGE = "BASE_PLANIFICACION!A:K";
+export const PLAN_RANGE = "BASE_PLANIFICACION!A:K";
 // Week (B3) and day (D3) currently selected in the athlete's sheet.
 const SELECTOR_RANGE = "MI_PLANIFICACION!A3:D3";
 

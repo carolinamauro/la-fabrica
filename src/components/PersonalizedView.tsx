@@ -1,9 +1,11 @@
 import type { PersonalizedPlan } from "@/lib/personalized";
+import { resultKey, setCount, type SavedResults } from "@/lib/results";
 import { Chips } from "./Chips";
 import { homeHref, prettyLabel } from "./format";
+import { SetLogger } from "./SetLogger";
 import { WorkoutBlocks } from "./WorkoutBlocks";
 
-export function PersonalizedView({ plan }: { plan: PersonalizedPlan }) {
+export function PersonalizedView({ plan, saved }: { plan: PersonalizedPlan; saved: SavedResults }) {
   const { weeks, selected, workout } = plan;
   const days = weeks.find((w) => w.week === selected.week)?.days ?? [];
 
@@ -28,21 +30,21 @@ export function PersonalizedView({ plan }: { plan: PersonalizedPlan }) {
       <h1 className="text-2xl font-bold">
         {prettyLabel(selected.week)} · {prettyLabel(selected.day)}
       </h1>
-      <WorkoutBlocks blocks={workout.blocks} />
+      <WorkoutBlocks
+        blocks={workout.blocks}
+        renderExtra={(exercise) => (
+          <SetLogger
+            // Remount when the day changes so inputs show that day's values.
+            key={`${selected.week}-${selected.day}-${exercise.order}-${exercise.name}`}
+            week={selected.week}
+            day={selected.day}
+            name={exercise.name}
+            order={exercise.order}
+            setCount={setCount(exercise.sets)}
+            saved={saved[resultKey(exercise.name)] ?? []}
+          />
+        )}
+      />
     </>
-  );
-}
-
-/** Loads/reps are still logged in the athlete's own sheet. */
-export function OpenSheetButton({ spreadsheetId }: { spreadsheetId: string }) {
-  return (
-    <a
-      href={`https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex h-12 w-full items-center justify-center rounded-full bg-accent font-semibold text-white"
-    >
-      Registrar cargas en mi planilla
-    </a>
   );
 }

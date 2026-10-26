@@ -10,6 +10,8 @@ export type Athlete = {
   planType: PlanType;
   /** Personal spreadsheet (from the `Archivo` column). Only personalized athletes have one. */
   spreadsheetId?: string;
+  /** From the `Peso` column; stored with each result as PESO_CORPORAL. */
+  bodyWeightKg?: number;
 };
 
 const ATHLETES_RANGE = "ATLETAS!A:Z";
@@ -42,6 +44,7 @@ export function parseAthletes(rows: string[][]): Athlete[] {
     type: col("TIPO"),
     status: col("ESTADO"),
     file: col("ARCHIVO"),
+    weight: col("PESO"),
   };
   if (idx.id < 0 || idx.email < 0 || idx.type < 0 || idx.status < 0) {
     throw new Error("ATLETAS tab is missing one of the columns ID, Mail, Tipo, Estado");
@@ -52,6 +55,7 @@ export function parseAthletes(rows: string[][]): Athlete[] {
     const email = row[idx.email]?.trim();
     const planType = PLAN_TYPES[normalize(row[idx.type])];
     if (!id || !email || !planType || normalize(row[idx.status]) !== "ACTIVO") return [];
+    const weight = Number((row[idx.weight] ?? "").replace(",", "."));
 
     return [
       {
@@ -61,6 +65,7 @@ export function parseAthletes(rows: string[][]): Athlete[] {
         email: normalizeEmail(email),
         planType,
         spreadsheetId: spreadsheetIdFromUrl(row[idx.file] ?? ""),
+        bodyWeightKg: weight > 0 ? weight : undefined,
       },
     ];
   });

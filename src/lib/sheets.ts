@@ -34,7 +34,8 @@ function getClient(): sheets_v4.Sheets {
         // Vercel and .env files store the key on one line with literal "\n".
         private_key: requireEnv("GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY").replace(/\\n/g, "\n"),
       },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+      // Write access is only used to append results to REGISTRO_PLANIFICACION.
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     }),
   });
   return client;
@@ -47,6 +48,21 @@ export function readRange(spreadsheetId: string, range: string): Promise<Rows> {
       .spreadsheets.values.get({ spreadsheetId, range, valueRenderOption: "FORMATTED_VALUE" })
       .then((res) => (res.data.values ?? []).map((row) => row.map((cell) => String(cell ?? "")))),
   );
+}
+
+/**
+ * Adds rows after the last row of `range`, typed as if entered by hand (dates and numbers are
+ * parsed), and drops the cached copy so the next read sees them.
+ */
+export async function appendRows(spreadsheetId: string, range: string, rows: (string | number)[][]): Promise<void> {
+  await getClient().spreadsheets.values.append({
+    spreadsheetId,
+    range,
+    valueInputOption: "USER_ENTERED",
+    insertDataOption: "INSERT_ROWS",
+    requestBody: { values: rows },
+  });
+  cache.delete(`values:${spreadsheetId}:${range}`);
 }
 
 /** For each column of a tab (A, B, C…), whether the coach has hidden it. */

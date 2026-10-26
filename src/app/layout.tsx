@@ -10,12 +10,20 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: "MARTE Training",
   description: "Tu planificación de entrenamiento",
+  applicationName: "MARTE",
+  // iOS "Add to Home Screen": open full screen with its own name and icon.
+  appleWebApp: { capable: true, title: "MARTE", statusBarStyle: "default" },
+  icons: { apple: "/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f6f5f3" },
+    { media: "(prefers-color-scheme: dark)", color: "#0d0d0d" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

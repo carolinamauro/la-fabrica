@@ -29,4 +29,20 @@ Mobile web app where athletes see their training plan (read from the coach's Goo
 2. `npm install`
 3. `npm run dev` → http://localhost:3000
 
+## Deploy (Vercel)
+
+1. Push `main` to GitHub, then in Vercel: **Add New → Project → Import** `carolinamauro/la-fabrica` (framework is detected as Next.js).
+2. Before deploying, add the same 7 environment variables as in `.env.local` (Settings → Environment Variables).
+3. After the first deploy, in the Google OAuth client add:
+   - Authorized JavaScript origin: `https://<your-app>.vercel.app`
+   - Authorized redirect URI: `https://<your-app>.vercel.app/api/auth/callback/google`
+4. Google Cloud → OAuth consent screen → **Publish app** ("In production"). While it is in "Testing", only the listed test users can sign in. The app only asks for name and email, so Google doesn't require a review.
+
+Every push to `main` redeploys automatically.
+
+## Install on the phone
+
+- **iPhone (Safari):** Share → "Agregar a inicio".
+- **Android (Chrome):** menu ⋮ → "Instalar app" / "Agregar a la pantalla principal".
+
 `reference/` holds the real spreadsheets exported as `.xlsx` and is gitignored — never commit it.

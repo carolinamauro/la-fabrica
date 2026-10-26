@@ -14,6 +14,7 @@ Mobile web app where athletes see their training plan (read from the coach's Goo
    GOOGLE_SERVICE_ACCOUNT_EMAIL=        # client_email from the service account JSON key
    GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=  # private_key from the JSON key, on one line with \n
    MASTER_SPREADSHEET_ID=               # ID of the live master file (the part after /d/ in its URL)
+   CROSSFIT_SPREADSHEET_ID=             # ID of the shared CrossFit file
    ```
 
    Service account: Google Cloud Console → enable **Google Sheets API** → IAM → Service accounts → create one → Keys → Add key (JSON).

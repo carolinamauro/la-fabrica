@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { timerFromText, timerParams } from "@/lib/timer";
 import type { Block, Exercise } from "@/lib/types";
 import { homeHref } from "./format";
+import { TimerIcon } from "./icons";
 
 /** Extra content under an exercise (e.g. the Carga/Reps logger of personalized plans). */
 type RenderExtra = (exercise: Exercise) => ReactNode;
@@ -27,13 +28,18 @@ function LinkedText({ text }: { text: string }) {
   );
 }
 
-/** "▶ Timer" next to a line that names one ("EMOM X 15 MIN"), opening /timer already set up. */
+/** /timer already set up for a line that names one ("EMOM X 15 MIN"), or the plain timer. */
+function timerHref(text?: string) {
+  const config = text ? timerFromText(text) : null;
+  return config ? homeHref(timerParams(config), "/timer") : "/timer";
+}
+
+/** "▶ Timer" next to a programming line that names one. */
 function TimerLink({ text }: { text: string }) {
-  const config = timerFromText(text);
-  if (!config) return null;
+  if (!timerFromText(text)) return null;
   return (
     <Link
-      href={homeHref(timerParams(config), "/timer")}
+      href={timerHref(text)}
       className="ml-2 inline-flex h-8 items-center gap-1 rounded-md bg-accent px-2.5 align-middle font-display text-sm font-extrabold tracking-wider text-background uppercase"
     >
       ▶ Timer
@@ -63,12 +69,14 @@ function Chevron() {
   );
 }
 
-function ExerciseItem({ exercise, extra }: { exercise: Exercise; extra?: RenderExtra }) {
+function ExerciseItem({ exercise, block, extra }: { exercise: Exercise; block: string; extra?: RenderExtra }) {
   const { name, order, sets, reps, target, rest, interval, notes } = exercise;
   const volume = sets && reps ? `${sets}×${reps}` : sets ? `${sets} series` : reps;
   const tags = [target, interval].filter(Boolean);
   // "C. EMOM X 15 MIN" can be the name itself, or the INTERVALO column of a personalized plan.
   const timerText = [name, interval].find((text) => text && timerFromText(text));
+  // "B" repeats the block header; "B1" still tells the exercises of a superset apart.
+  const showOrder = order && order !== block;
 
   // A line with nothing next to it is plain programming text (CrossFit).
   if (!volume && !tags.length && !rest && !notes && !order) {
@@ -84,24 +92,35 @@ function ExerciseItem({ exercise, extra }: { exercise: Exercise; extra?: RenderE
     <li className="py-4 first:pt-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          {order && <p className="font-display text-sm font-bold tracking-widest text-accent">{order}</p>}
+          {showOrder && <p className="font-display text-sm font-bold tracking-widest text-accent">{order}</p>}
           <p className="font-display text-xl leading-tight font-bold uppercase">
             <LinkedText text={name} />
           </p>
         </div>
-        {volume && (
-          <p className="shrink-0 font-display text-2xl leading-none font-extrabold tabular-nums">{volume}</p>
-        )}
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          {volume && <p className="font-display text-2xl leading-none font-extrabold tabular-nums">{volume}</p>}
+          <Link
+            href={timerHref(timerText)}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-accent-soft px-2.5 font-display text-sm font-bold tracking-wider text-accent uppercase active:bg-accent active:text-background"
+          >
+            <TimerIcon className="size-4" />
+            Timer
+          </Link>
+        </div>
       </div>
-      {(tags.length > 0 || rest || timerText) && (
-        <div className="mt-2 flex flex-wrap gap-1.5 text-sm">
+      {(tags.length > 0 || rest) && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-sm">
           {tags.map((tag) => (
             <span key={tag} className="rounded-md bg-accent-soft px-2 py-0.5 font-semibold text-accent">
               {tag}
             </span>
           ))}
-          {rest && <span className="rounded-md bg-card-raised px-2 py-0.5 font-medium text-muted">Pausa {rest}</span>}
-          {timerText && <TimerLink text={timerText} />}
+          {rest && (
+            <span className="inline-flex items-baseline gap-1.5 rounded-md border border-silver/30 px-2 py-0.5">
+              <span className="text-xs font-semibold tracking-wider text-silver uppercase">Pausa</span>
+              <span className="font-display text-base leading-none font-bold text-foreground">{rest}</span>
+            </span>
+          )}
         </div>
       )}
       {notes && (
@@ -134,12 +153,12 @@ export function WorkoutBlocks({
         return (
           <details key={`${block.title}-${i}`} className="group rounded-2xl border border-line bg-card open:border-accent/40">
             <summary className="flex cursor-pointer list-none items-center gap-3 p-3 select-none">
-              <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-accent font-display text-2xl font-extrabold text-background">
+              <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-accent font-display text-xl font-extrabold text-background">
                 {badge}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block font-display text-lg leading-tight font-bold tracking-wide uppercase">{name}</span>
-                <span className="block truncate text-sm text-muted">{preview(block)}</span>
+                <span className="block text-xs font-semibold tracking-widest text-muted uppercase">{name}</span>
+                <span className="line-clamp-2 font-display text-xl leading-tight font-bold uppercase">{preview(block)}</span>
               </span>
               {renderAside?.(block)}
               <Chevron />
@@ -161,7 +180,7 @@ export function WorkoutBlocks({
               {block.exercises.length > 0 && (
                 <ul className="divide-y divide-line">
                   {block.exercises.map((exercise, j) => (
-                    <ExerciseItem key={j} exercise={exercise} extra={renderExtra} />
+                    <ExerciseItem key={j} exercise={exercise} block={block.title} extra={renderExtra} />
                   ))}
                 </ul>
               )}

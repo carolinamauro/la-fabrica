@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { signOutAction } from "@/app/actions";
 import { LogoMark, Wordmark } from "./Brand";
+import { TimerIcon } from "./icons";
 
 /**
  * Page frame: sticky wordmark bar with sign out (and optional plan tabs under it), content,
@@ -30,10 +31,7 @@ export function AppShell({
           </Link>
           <div className="flex shrink-0 items-center gap-1">
             <Link href="/timer" aria-label="Timer" className="grid size-10 place-items-center rounded-lg text-accent">
-              <svg viewBox="0 0 24 24" aria-hidden className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <circle cx="12" cy="13" r="8" />
-                <path d="M12 9v4l2.5 2.5M10 2h4M12 2v3" />
-              </svg>
+              <TimerIcon />
             </Link>
             <form action={signOutAction}>
               <button type="submit" className="h-10 px-1 font-display text-sm font-bold tracking-wider text-muted uppercase">

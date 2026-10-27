@@ -32,26 +32,30 @@ function parse(value: string): number | undefined | null {
 function SavedSummary({ rows }: { rows: Row[] }) {
   const filled = rows.map((row, i) => ({ row, set: i + 1 })).filter(({ row }) => isFilled(row));
   if (!filled.length) return <span className="text-sm text-muted">Sin cargar</span>;
+  // Read-only data, so a thin rail per series instead of boxes that look tappable.
   return (
-    <>
+    <ol aria-label="Series cargadas" className="grid flex-1 grid-cols-[repeat(auto-fill,minmax(4.75rem,1fr))] gap-x-3 gap-y-2">
       {filled.map(({ row, set }) => (
-        <span
-          key={set}
-          className="rounded-md border border-silver/30 bg-silver/10 px-2 py-0.5 font-display text-base font-bold text-silver tabular-nums"
-        >
-          <span className="mr-1 text-xs opacity-70">S{set}</span>
-          {row.load && (
-            <>
-              {row.load}
-              <span className="text-xs">kg</span>
-            </>
-          )}
-          {row.load && row.reps && "×"}
-          {row.reps}
-          {!row.load && row.reps && <span className="text-xs"> reps</span>}
-        </span>
+        <li key={set} className="border-l-2 border-accent/50 pl-2 leading-none">
+          <span className="block text-[0.65rem] font-semibold tracking-widest text-muted uppercase">Serie {set}</span>
+          <span className="mt-1 block font-display text-lg font-bold whitespace-nowrap tabular-nums">
+            {row.load && (
+              <>
+                {row.load}
+                <span className="ml-0.5 text-xs font-semibold text-muted">kg</span>
+              </>
+            )}
+            {row.reps && (
+              <span className={row.load ? "ml-1 text-silver" : ""}>
+                {row.load && <span className="text-sm text-muted">×</span>}
+                {row.reps}
+                {!row.load && <span className="ml-0.5 text-xs font-semibold text-muted">reps</span>}
+              </span>
+            )}
+          </span>
+        </li>
       ))}
-    </>
+    </ol>
   );
 }
 
@@ -112,7 +116,7 @@ export function SetLogger({ week, day, name, order, setCount, saved }: Props) {
   if (!open) {
     return (
       <div className="mt-3 flex items-center gap-3">
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+        <div className="flex min-w-0 flex-1 items-center">
           <SavedSummary rows={lastSaved} />
           {status.kind === "saved" && <span className="sr-only">Guardado</span>}
         </div>

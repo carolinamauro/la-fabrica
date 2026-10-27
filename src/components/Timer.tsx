@@ -14,6 +14,7 @@ import {
   type TimerConfig,
   type TimerMode,
 } from "@/lib/timer";
+import { DayTitle } from "./DayTitle";
 
 const MODES: { mode: TimerMode; label: string; hint: string }[] = [
   { mode: "amrap", label: "AMRAP", hint: "Máximas rondas en el tiempo" },
@@ -65,6 +66,18 @@ function useWakeLock(active: boolean) {
     return () => {
       document.removeEventListener("visibilitychange", onVisible);
       void lock?.release();
+    };
+  }, [active]);
+}
+
+/** Keeps the page behind a sheet or the full-screen clock from scrolling. */
+function useScrollLock(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
     };
   }, [active]);
 }
@@ -290,7 +303,17 @@ function Fields({ config, onChange }: { config: TimerConfig; onChange: (config: 
 /** Running time is `banked` seconds plus the time since `startedAt` (null while paused). */
 type Run = { startedAt: number | null; banked: number; finished: boolean };
 
-function RunningClock({ config, onExit }: { config: TimerConfig; onExit: () => void }) {
+type ClockProps = {
+  config: TimerConfig;
+  /** Docked at the bottom of the page instead of full screen; it keeps running either way. */
+  minimized: boolean;
+  onMinimize: () => void;
+  onExpand: () => void;
+  /** The workout is over and closed: nothing stays docked. */
+  onEnd: () => void;
+};
+
+function RunningClock({ config, minimized, onMinimize, onExpand, onEnd }: ClockProps) {
   const list = useMemo(() => segments(config), [config]);
   const [run, setRun] = useState<Run>(() => ({ startedAt: performance.now(), banked: 0, finished: false }));
   const [now, setNow] = useState(() => performance.now());
@@ -304,6 +327,7 @@ function RunningClock({ config, onExit }: { config: TimerConfig; onExit: () => v
   const countUp = config.mode === "fortime" && state.segment.phase === "work";
 
   useWakeLock(running);
+  useScrollLock(!minimized);
 
   useEffect(() => {
     if (!running) return;
@@ -366,6 +390,40 @@ function RunningClock({ config, onExit }: { config: TimerConfig; onExit: () => v
   const progress = Number.isFinite(state.segment.seconds) ? state.elapsed / state.segment.seconds : 0;
   const control = "h-16 flex-1 rounded-xl font-display text-xl font-extrabold tracking-wider uppercase";
 
+  if (minimized) {
+    const small = "grid size-12 shrink-0 place-items-center rounded-xl bg-black/15 font-display text-lg font-extrabold uppercase";
+    return (
+      // Above the page's own bottom bar, if it has one (see --dock in globals.css).
+      <div data-timer-dock className="fixed inset-x-0 bottom-[calc(var(--dock)+env(safe-area-inset-bottom))] z-40 px-4 pb-3">
+        <div className={`mx-auto flex max-w-lg items-center gap-2 rounded-2xl border border-line p-2 pl-4 shadow-lg shadow-black/50 transition-colors ${background}`}>
+          <button type="button" onClick={onExpand} aria-label="Abrir timer" className="flex min-w-0 flex-1 items-center gap-3 text-left">
+            <span className="font-display text-4xl leading-none font-extrabold tabular-nums">{display}</span>
+            <span className="min-w-0 font-display leading-tight font-bold tracking-wider uppercase">
+              <span className="block truncate">{state.done ? "¡Terminado!" : run.startedAt === null ? "En pausa" : PHASE_LABEL[state.segment.phase]}</span>
+              <span className="block truncate text-sm opacity-70">
+                {MODES.find((m) => m.mode === config.mode)?.label}
+                {!state.done && rounds > 1 && round > 0 && ` · ${round}/${rounds}`}
+              </span>
+            </span>
+          </button>
+          {state.done ? (
+            <button type="button" onClick={onEnd} aria-label="Cerrar timer" className={small}>
+              ✕
+            </button>
+          ) : running ? (
+            <button type="button" onClick={() => pause()} aria-label="Pausa" className={small}>
+              ❚❚
+            </button>
+          ) : (
+            <button type="button" onClick={resume} aria-label="Seguir" className={small}>
+              ▶
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`fixed inset-0 z-50 flex flex-col px-5 pt-[calc(env(safe-area-inset-top)+1.5rem)] pb-[calc(env(safe-area-inset-bottom)+1.5rem)] transition-colors ${background}`}>
       <div className="flex items-start justify-between font-display font-bold tracking-widest uppercase">
@@ -412,7 +470,18 @@ function RunningClock({ config, onExit }: { config: TimerConfig; onExit: () => v
             <div className="h-full rounded-full bg-current" style={{ width: `${Math.min(100, progress * 100)}%` }} />
           </div>
         )}
-        {run.startedAt === null && !state.done && <p className="mt-6 font-display text-2xl font-bold tracking-widest uppercase opacity-70">En pausa</p>}
+        {run.startedAt === null && !state.done && (
+          <>
+            <p className="mt-6 font-display text-2xl font-bold tracking-widest uppercase opacity-70">En pausa</p>
+            <button
+              type="button"
+              onClick={() => pause(true)}
+              className="mt-4 h-12 rounded-xl border-2 border-current px-6 font-display text-lg font-bold tracking-wider uppercase"
+            >
+              Finalizar
+            </button>
+          </>
+        )}
       </div>
 
       {!state.done && (
@@ -434,8 +503,9 @@ function RunningClock({ config, onExit }: { config: TimerConfig; onExit: () => v
         </div>
       )}
       <div className="flex gap-3">
-        <button type="button" onClick={onExit} className={`${control} border-2 border-current`}>
-          {state.done ? "Volver" : "Cerrar"}
+        {/* While the workout is on, closing docks it at the bottom; once over, it goes away. */}
+        <button type="button" onClick={state.done ? onEnd : onMinimize} className={`${control} border-2 border-current`}>
+          Cerrar
         </button>
         {!state.done &&
           (config.mode === "fortime" && state.segment.phase === "work" && running ? (
@@ -456,18 +526,68 @@ function RunningClock({ config, onExit }: { config: TimerConfig; onExit: () => v
   );
 }
 
-// --- Screen ---
+// --- Sheet ---
 
-export function Timer({ initial }: { initial: TimerConfig }) {
+type TimerProps = Omit<ClockProps, "config" | "onEnd"> & {
+  initial: TimerConfig;
+  /** Closes the timer altogether (the setup sheet, or a finished workout). */
+  onClose: () => void;
+};
+
+/** Setup sheet over the page; once started, the clock (full screen or docked). */
+export function Timer({ initial, onClose, ...clock }: TimerProps) {
   const [config, setConfig] = useState<TimerConfig>(initial);
   const [runId, setRunId] = useState<number | null>(null);
   const total = workoutSeconds(config);
+
+  useScrollLock(runId === null);
 
   function start() {
     unlockAudio();
     setRunId(Date.now());
   }
 
+  if (runId !== null) return <RunningClock key={runId} config={config} onEnd={onClose} {...clock} />;
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-black/60 pt-[calc(env(safe-area-inset-top)+1.5rem)]" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal
+        aria-label="Timer"
+        onClick={(e) => e.stopPropagation()}
+        className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 overflow-y-auto overscroll-contain rounded-t-3xl border border-b-0 border-line bg-background px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <DayTitle eyebrow="Reloj" title="Timer" />
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar timer"
+            className="grid size-10 shrink-0 place-items-center rounded-lg border border-line text-xl text-muted"
+          >
+            ✕
+          </button>
+        </div>
+        <SetupFields initial={initial} config={config} total={total} onChange={setConfig} onStart={start} />
+      </div>
+    </div>
+  );
+}
+
+function SetupFields({
+  initial,
+  config,
+  total,
+  onChange: setConfig,
+  onStart: start,
+}: {
+  initial: TimerConfig;
+  config: TimerConfig;
+  total: number;
+  onChange: (config: TimerConfig) => void;
+  onStart: () => void;
+}) {
   return (
     <>
       <div className="grid grid-cols-2 gap-2">
@@ -497,7 +617,6 @@ export function Timer({ initial }: { initial: TimerConfig }) {
       >
         Empezar
       </button>
-      {runId !== null && <RunningClock key={runId} config={config} onExit={() => setRunId(null)} />}
     </>
   );
 }

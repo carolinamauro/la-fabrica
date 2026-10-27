@@ -38,6 +38,17 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* The docked timer sits above a page's bottom bar, and the content makes room for it. */
+body {
+  --dock: 0px;
+}
+body:has([data-bottom-bar]) {
+  --dock: 4.5rem;
+}
+body:has([data-timer-dock]) main {
+  padding-bottom: calc(var(--dock) + 7rem);
+}
+
 summary::-webkit-details-marker {
   display: none;
 }

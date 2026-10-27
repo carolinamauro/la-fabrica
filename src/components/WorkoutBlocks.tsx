@@ -1,9 +1,8 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
-import { timerFromText, timerParams } from "@/lib/timer";
+import { timerFromText } from "@/lib/timer";
 import type { Block, Exercise } from "@/lib/types";
-import { homeHref } from "./format";
 import { TimerIcon } from "./icons";
+import { TimerButton } from "./TimerProvider";
 
 /** Extra content under an exercise (e.g. the Carga/Reps logger of personalized plans). */
 type RenderExtra = (exercise: Exercise) => ReactNode;
@@ -28,22 +27,17 @@ function LinkedText({ text }: { text: string }) {
   );
 }
 
-/** /timer already set up for a line that names one ("EMOM X 15 MIN"), or the plain timer. */
-function timerHref(text?: string) {
-  const config = text ? timerFromText(text) : null;
-  return config ? homeHref(timerParams(config), "/timer") : "/timer";
-}
-
-/** "▶ Timer" next to a programming line that names one. */
+/** "▶ Timer" next to a programming line that names one ("EMOM X 15 MIN"), opening it already set up. */
 function TimerLink({ text }: { text: string }) {
-  if (!timerFromText(text)) return null;
+  const config = timerFromText(text);
+  if (!config) return null;
   return (
-    <Link
-      href={timerHref(text)}
+    <TimerButton
+      config={config}
       className="ml-2 inline-flex h-8 items-center gap-1 rounded-md bg-accent px-2.5 align-middle font-display text-sm font-extrabold tracking-wider text-background uppercase"
     >
       ▶ Timer
-    </Link>
+    </TimerButton>
   );
 }
 
@@ -74,7 +68,7 @@ function ExerciseItem({ exercise, block, extra }: { exercise: Exercise; block: s
   const volume = sets && reps ? `${sets}×${reps}` : sets ? `${sets} series` : reps;
   const tags = [target, interval].filter(Boolean);
   // "C. EMOM X 15 MIN" can be the name itself, or the INTERVALO column of a personalized plan.
-  const timerText = [name, interval].find((text) => text && timerFromText(text));
+  const timer = [name, interval].map((text) => (text ? timerFromText(text) : null)).find((config) => config) ?? undefined;
   // "B" repeats the block header; "B1" still tells the exercises of a superset apart.
   const showOrder = order && order !== block;
 
@@ -99,13 +93,13 @@ function ExerciseItem({ exercise, block, extra }: { exercise: Exercise; block: s
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
           {volume && <p className="font-display text-2xl leading-none font-extrabold tabular-nums">{volume}</p>}
-          <Link
-            href={timerHref(timerText)}
+          <TimerButton
+            config={timer}
             className="inline-flex h-8 items-center gap-1.5 rounded-md bg-accent-soft px-2.5 font-display text-sm font-bold tracking-wider text-accent uppercase active:bg-accent active:text-background"
           >
             <TimerIcon className="size-4" />
             Timer
-          </Link>
+          </TimerButton>
         </div>
       </div>
       {(tags.length > 0 || rest) && (

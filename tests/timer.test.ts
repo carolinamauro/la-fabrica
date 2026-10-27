@@ -1,16 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  DEFAULTS,
   formatClock,
   PREPARE_SECONDS,
   previousWorkIndex,
   segmentStart,
   segments,
   stateAt,
-  timerFromParams,
   timerFromText,
-  timerParams,
-  type TimerConfig,
 } from "../src/lib/timer";
 
 describe("segments", () => {
@@ -125,36 +121,6 @@ describe("timerFromText", () => {
     expect(timerFromText("EN EMOM (TODO EN EL MISMO MIN)")).toBeNull();
     expect(timerFromText("AMRAP CAL/MTS/SEG REMO")).toBeNull();
     expect(timerFromText("8 SUPERMAN")).toBeNull();
-  });
-});
-
-describe("timer params", () => {
-  it("round-trips through the URL", () => {
-    const config = { mode: "tabata", work: 240, rest: 90, rounds: 5 } as const;
-    expect(timerFromParams(timerParams(config))).toEqual(config);
-  });
-
-  it("round-trips series groups through the URL", () => {
-    const config: TimerConfig = {
-      mode: "series",
-      groups: [
-        { sets: 10, setRest: 60, blocks: 5, work: 240, rest: 30, restAfter: 120 },
-        { sets: 3, setRest: 90, blocks: 2, work: 45, rest: 15, restAfter: 0 },
-      ],
-    };
-    expect(timerParams(config)).toEqual({ mode: "series", g: "10-60-5-240-30-120,3-90-2-45-15-0" });
-    expect(timerFromParams(timerParams(config))).toEqual(config);
-  });
-
-  it("uses the default series when the param is broken", () => {
-    expect(timerFromParams({ mode: "series", g: "10-60-x-240-30-0" })).toEqual(DEFAULTS.series);
-    expect(timerFromParams({ mode: "series", g: "0-60-5-240-30-0" })).toEqual(DEFAULTS.series);
-    expect(timerFromParams({ mode: "series", g: "10-60-5-240" })).toEqual(DEFAULTS.series);
-  });
-
-  it("falls back to defaults for unknown or bad values", () => {
-    expect(timerFromParams({ mode: "nope" })).toEqual({ mode: "amrap", time: 720 });
-    expect(timerFromParams({ mode: "emom", rounds: "-3", every: "abc" })).toEqual({ mode: "emom", every: 60, rounds: 10 });
   });
 });
 

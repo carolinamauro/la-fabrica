@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { signOutAction } from "@/app/actions";
 import { LogoMark, Wordmark } from "./Brand";
 import { TimerIcon } from "./icons";
+import { TimerButton } from "./TimerProvider";
 
 /**
  * Page frame: sticky wordmark bar with sign out (and optional plan tabs under it), content,
@@ -30,9 +31,9 @@ export function AppShell({
             {name && <span className="truncate pl-1 text-sm text-muted">Hola, {name}</span>}
           </Link>
           <div className="flex shrink-0 items-center gap-1">
-            <Link href="/timer" aria-label="Timer" className="grid size-10 place-items-center rounded-lg text-accent">
+            <TimerButton aria-label="Timer" className="grid size-10 place-items-center rounded-lg text-accent">
               <TimerIcon />
-            </Link>
+            </TimerButton>
             <form action={signOutAction}>
               <button type="submit" className="h-10 px-1 font-display text-sm font-bold tracking-wider text-muted uppercase">
                 Salir
@@ -46,7 +47,7 @@ export function AppShell({
       <main className={`flex flex-1 flex-col gap-4 px-4 pt-4 ${bottom ? "pb-28" : "pb-10"}`}>{children}</main>
 
       {bottom && (
-        <div className="fixed inset-x-0 bottom-0 border-t border-line bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+        <div data-bottom-bar className="fixed inset-x-0 bottom-0 border-t border-line bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur">
           <div className="mx-auto max-w-lg px-4 py-3">{bottom}</div>
         </div>
       )}

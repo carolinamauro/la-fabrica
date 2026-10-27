@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Barlow, Barlow_Condensed } from "next/font/google";
+import { TimerProvider } from "@/components/TimerProvider";
 import "./globals.css";
 
 const barlow = Barlow({
@@ -34,7 +35,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es" className={`${barlow.variable} ${barlowCondensed.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <TimerProvider>{children}</TimerProvider>
+      </body>
     </html>
   );
 }

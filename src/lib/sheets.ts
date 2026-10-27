@@ -35,7 +35,8 @@ function getAuth() {
       private_key: requireEnv("GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY").replace(/\\n/g, "\n"),
     },
     scopes: [
-      // Write access is only used to append results to REGISTRO_PLANIFICACION.
+      // Write access is only used to append results to REGISTRO_PLANIFICACION and to fill the
+      // Carga/Reps cells of MI_PLANIFICACION.
       "https://www.googleapis.com/auth/spreadsheets",
       // Who a file is shared with (to offer the CrossFit plan to athletes who have it).
       "https://www.googleapis.com/auth/drive.metadata.readonly",
@@ -49,8 +50,12 @@ function getClient(): sheets_v4.Sheets {
   return client;
 }
 
-/** Reads a range as displayed in the sheet (formatted text), cached for CACHE_TTL_MS. */
-export function readRange(spreadsheetId: string, range: string): Promise<Rows> {
+/**
+ * Reads a range as displayed in the sheet (formatted text), cached for CACHE_TTL_MS.
+ * `fresh` skips the cached copy (for reads that decide where to write).
+ */
+export function readRange(spreadsheetId: string, range: string, { fresh = false } = {}): Promise<Rows> {
+  if (fresh) cache.delete(`values:${spreadsheetId}:${range}`);
   return cached(`values:${spreadsheetId}:${range}`, () =>
     getClient()
       .spreadsheets.values.get({ spreadsheetId, range, valueRenderOption: "FORMATTED_VALUE" })
@@ -71,6 +76,23 @@ export async function appendRows(spreadsheetId: string, range: string, rows: (st
     requestBody: { values: rows },
   });
   cache.delete(`values:${spreadsheetId}:${range}`);
+}
+
+/**
+ * Writes values into cells (A1 ranges such as "MI_PLANIFICACION!I9:J9"), typed as if entered by
+ * hand, and drops the cached copy of `cachedRange` so the next read sees them.
+ */
+export async function writeCells(
+  spreadsheetId: string,
+  data: { range: string; values: (string | number)[][] }[],
+  cachedRange: string,
+): Promise<void> {
+  if (!data.length) return;
+  await getClient().spreadsheets.values.batchUpdate({
+    spreadsheetId,
+    requestBody: { valueInputOption: "USER_ENTERED", data },
+  });
+  cache.delete(`values:${spreadsheetId}:${cachedRange}`);
 }
 
 /** For each column of a tab (A, B, C…), whether the coach has hidden it. */

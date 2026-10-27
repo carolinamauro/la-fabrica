@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   buildResultRows,
   epley,
+  findSheetRow,
   formatRecordedAt,
+  mergeSheetLoads,
   parseE1rmExercises,
   parseResults,
+  parseSheetLoads,
   setCount,
+  sheetLoadCells,
 } from "../src/lib/results";
 
 // Same header as the real REGISTRO_PLANIFICACION tab.
@@ -110,5 +114,62 @@ describe("helpers", () => {
 
   it("formatRecordedAt uses Argentina time in a format Sheets parses as a date", () => {
     expect(formatRecordedAt(new Date("2026-10-26T11:30:05Z"))).toBe("2026-10-26 08:30:05");
+  });
+});
+
+describe("MI_PLANIFICACION loads", () => {
+  // As read from MI_PLANIFICACION!A3:T (row 3 is the week/day selector, row 5 the header).
+  const sheetRows = [
+    ["SEMANA :", "SEMANA 1", "DIA :", "DIA 2"],
+    ["", "", "", "", "", "", "", "", "SERIE 1", "", "SERIE 2"],
+    ["ORDEN", "EJERCICIO", "SERIES", "REPETICIONES", "OBJETIVO", "DESCANSO", "INTERVALO", "NOTAS", "CARGA", "REPS", "CARGA", "REPS"],
+    ["A1", "HIP THRUST", "3", "8", "", "", "", "", "97,50 KG", "8", "100,00 KG", "8"],
+    ["", "PULL UP", "3", "12"],
+    ["B1", "PULL UP", "3", "10", "", "", "", "", "", "10"],
+  ];
+  const sheet = parseSheetLoads(sheetRows)!;
+
+  it("reads the open day, the Carga/Reps columns and each row's sheet row number", () => {
+    expect(sheet.selection).toEqual(selection);
+    expect(sheet.loadColumns).toEqual([8, 10]);
+    expect(sheet.rows).toEqual([
+      { row: 6, order: "A1", name: "HIP THRUST", sets: [{ set: 1, load: 97.5, reps: 8 }, { set: 2, load: 100, reps: 8 }] },
+      { row: 7, order: "A1", name: "PULL UP", sets: [] },
+      { row: 8, order: "B1", name: "PULL UP", sets: [{ set: 1, load: undefined, reps: 10 }] },
+    ]);
+  });
+
+  it("finds an exercise's row by name and ORDEN", () => {
+    expect(findSheetRow(sheet, { name: "Pull up", order: "B1" })?.row).toBe(8);
+    expect(findSheetRow(sheet, { name: "HIP THRUST", order: "Z9" })?.row).toBe(6); // only one with that name
+    expect(findSheetRow(sheet, { name: "PULL UP", order: "Z9" })).toBeUndefined(); // ambiguous
+  });
+
+  it("takes an exercise's loads from the sheet as is, so cleared cells stay cleared", () => {
+    const empty = parseSheetLoads(sheetRows.slice(0, 4).concat([["A2", "SQUAT"]]))!;
+    expect(mergeSheetLoads({ SQUAT: [{ set: 1, load: 95, reps: 3 }] }, empty).SQUAT).toBeUndefined();
+
+    const saved = {
+      "HIP THRUST": [{ set: 1, load: 90, reps: 8 }, { set: 3, load: 90, reps: 8 }],
+      "BENCH PRESS": [{ set: 1, load: 50, reps: 5 }],
+    };
+    const merged = mergeSheetLoads(saved, sheet);
+    expect(merged["HIP THRUST"]).toEqual([
+      { set: 1, load: 97.5, reps: 8 },
+      { set: 2, load: 100, reps: 8 },
+    ]);
+    expect(merged["BENCH PRESS"]).toEqual([{ set: 1, load: 50, reps: 5 }]); // not loaded in the sheet
+  });
+
+  it("writes each series into its Carga/Reps pair, clearing empty values", () => {
+    const sets = [{ set: 1, load: 100, reps: 8 }, { set: 2, reps: 6 }, { set: 3, load: 50, reps: 5 }];
+    expect(sheetLoadCells(sheet, 6, sets)).toEqual([
+      { range: "MI_PLANIFICACION!I6:J6", values: [[100, 8]] },
+      { range: "MI_PLANIFICACION!K6:L6", values: [["", 6]] },
+    ]);
+  });
+
+  it("returns null when the tab has no header", () => {
+    expect(parseSheetLoads([["SEMANA :", "SEMANA 1"]])).toBeNull();
   });
 });

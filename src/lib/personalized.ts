@@ -3,8 +3,9 @@ import { readRange } from "./sheets";
 import type { Block, DaySelection, Exercise, WeekSummary, Workout } from "./types";
 
 export const PLAN_RANGE = "BASE_PLANIFICACION!A:K";
-// Week (B3) and day (D3) currently selected in the athlete's sheet.
-const SELECTOR_RANGE = "MI_PLANIFICACION!A3:D3";
+// From the week (B3) and day (D3) selected in the athlete's sheet down to the last Carga/Reps column.
+export const MI_RANGE = "MI_PLANIFICACION!A3:T";
+export const MI_FIRST_ROW = 3;
 
 type PlanRow = { week: string; day: string; exercise: Exercise };
 
@@ -135,7 +136,7 @@ export async function getPersonalizedPlan(
 
   const [planRows, selectorRows] = await Promise.all([
     readRange(athlete.spreadsheetId, PLAN_RANGE),
-    readRange(athlete.spreadsheetId, SELECTOR_RANGE),
+    readRange(athlete.spreadsheetId, MI_RANGE),
   ]);
   const rows = parsePlanRows(planRows, athlete.id);
   const weeks = listWeeks(rows);

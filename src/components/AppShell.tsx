@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { signOutAction } from "@/app/actions";
 import { LogoMark, Wordmark } from "./Brand";
 import { TimerIcon } from "./icons";
+import { InstallApp } from "./InstallApp";
 import { TimerButton } from "./TimerProvider";
 
 /**
@@ -44,7 +45,10 @@ export function AppShell({
         {nav}
       </header>
 
-      <main className={`flex flex-1 flex-col gap-4 px-4 pt-4 ${bottom ? "pb-28" : "pb-10"}`}>{children}</main>
+      <main className={`flex flex-1 flex-col gap-4 px-4 pt-4 ${bottom ? "pb-28" : "pb-10"}`}>
+        <InstallApp />
+        {children}
+      </main>
 
       {bottom && (
         <div data-bottom-bar className="fixed inset-x-0 bottom-0 border-t border-line bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur">

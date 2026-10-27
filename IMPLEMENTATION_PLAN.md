@@ -2,7 +2,7 @@
 
 **Goal:** athletes open an app on their phone and see their training in a clean, readable way instead of a spreadsheet.
 
-**Principle:** the coach keeps working in Google Sheets exactly as today. The app reads the plans and writes in only one place: it **appends** the athlete's Carga/Reps per series to their `REGISTRO_PLANIFICACION`, in the same format the sheet already uses, so `DASHBOARD` and `HISTORIAL` keep working. It never edits existing cells, formulas or `MI_PLANIFICACION`.
+**Principle:** the coach keeps working in Google Sheets exactly as today. The app reads the plans and writes the athlete's Carga/Reps per series in two places: it **appends** them to their `REGISTRO_PLANIFICACION`, in the same format the sheet already uses, so `DASHBOARD` and `HISTORIAL` keep working; and, when that week/day is the one selected in `MI_PLANIFICACION`, it fills the Carga/Reps cells (I–T) of that exercise's row there. It never edits formulas or any other cell.
 
 ---
 
@@ -17,7 +17,7 @@
 
 Plus: installable on the home screen (PWA manifest + icon), a "refresh" pull, and a button "Abrir mi planilla" that opens the athlete's sheet to log loads as they do today.
 
-**Logging (FUERZA):** under each exercise, one row per series (up to 6, like `MI_PLANIFICACION` I–T) with **Carga** and **Reps**, and a **Guardar** button. Saved values are prefilled; a correction is a new row (latest wins). E1RM / RATIO_BW are filled for exercises the catalog marks with `E1RM = SI`.
+**Logging (FUERZA):** under each exercise, one row per series (up to 6, like `MI_PLANIFICACION` I–T) with **Carga** and **Reps**, and a **Guardar** button. Saved values are prefilled; a correction is a new row (latest wins). For the day open in `MI_PLANIFICACION`, loads typed in the sheet's I–T cells are prefilled too (they win over `REGISTRO_PLANIFICACION`), and saving in the app writes back into those cells. E1RM / RATIO_BW are filled for exercises the catalog marks with `E1RM = SI`.
 
 **Not in this version:** offline mode, marking the session complete (`CONTROL_SESIONES`), coach screens, payment lock, any database.
 

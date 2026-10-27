@@ -19,7 +19,8 @@ Mobile web app where athletes see their training plan (read from the coach's Goo
    ```
 
    Service account: Google Cloud Console → enable **Google Sheets API** and **Google Drive API** (Drive is only used to read who the CrossFit file is shared with) → IAM → Service accounts → create one → Keys → Add key (JSON).
-   Share the master file and the CrossFit file with the service account email as **Viewer**, and the athletes' folder as **Editor** (the app appends results to each athlete's `REGISTRO_PLANIFICACION`).
+   Share the master file and the CrossFit file with the service account email as **Viewer**, and the athletes' folder as **Editor** (the app appends results to each athlete's `REGISTRO_PLANIFICACION` and fills the Carga/Reps cells of `MI_PLANIFICACION`).
+   Each athlete file's `REGISTRO_PLANIFICACION` tab is protected ("SOLO COACH"): add the service account to that protection's editors too (Data → Protected sheets and ranges). `MI_PLANIFICACION` I6:T50 is already unprotected.
    The master must be a native Google Sheet (not an uploaded `.xlsx`).
    Athletes with a personalized plan also get a **CrossFit** tab when the CrossFit file is shared with their Google email (or their domain, or by link). If Drive only lets Viewers see part of the sharing list, make the service account an **Editor** of the CrossFit file.
 

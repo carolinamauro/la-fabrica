@@ -1,6 +1,6 @@
 import type { Athlete } from "./athletes";
-import { buildWorkout, parsePlanRows, PLAN_RANGE } from "./personalized";
-import { appendRows, readRange } from "./sheets";
+import { buildWorkout, MI_FIRST_ROW, MI_RANGE, parsePlanRows, PLAN_RANGE } from "./personalized";
+import { appendRows, readRange, writeCells } from "./sheets";
 import { MAX_SETS, type DaySelection, type Exercise } from "./types";
 
 export { MAX_SETS };
@@ -19,8 +19,9 @@ const label = (value: string | undefined) => (value ?? "").trim().toUpperCase().
 /** Key of an exercise in SavedResults. */
 export const resultKey = (exerciseName: string) => label(exerciseName);
 
+/** "97,50 KG" (MI_PLANIFICACION's format), "97.5" or "97,5" → 97.5. */
 function toNumber(value: string | undefined): number | undefined {
-  const raw = (value ?? "").trim().replace(",", ".");
+  const raw = (value ?? "").trim().replace(/\s*kg$/i, "").replace(",", ".");
   const number = Number(raw);
   return raw && Number.isFinite(number) ? number : undefined;
 }
@@ -127,9 +128,87 @@ export function formatRecordedAt(date: Date): string {
   return date.toLocaleString("sv-SE", { timeZone: TIME_ZONE }).replace("T", " ");
 }
 
+type SheetRow = { row: number; order: string; name: string; sets: SetResult[] };
+/** MI_PLANIFICACION: the week/day open in the sheet and the Carga/Reps typed on each exercise row. */
+export type SheetLoads = { selection: DaySelection; loadColumns: number[]; rows: SheetRow[] };
+
+/** Parses MI_RANGE. Null when the tab doesn't have its usual header. */
+export function parseSheetLoads(rows: string[][]): SheetLoads | null {
+  const [selector = []] = rows;
+  const headerAt = rows.findIndex((row) => row.some((cell) => label(cell) === "EJERCICIO"));
+  if (headerAt < 0) return null;
+  const col = headerIndex(rows[headerAt]);
+  const orderIdx = col("ORDEN");
+  const nameIdx = col("EJERCICIO");
+  // Each SERIE is a CARGA column followed by its REPS column.
+  const loadColumns = rows[headerAt]
+    .flatMap((h, i) => (label(h) === "CARGA" && label(rows[headerAt][i + 1]) === "REPS" ? [i] : []))
+    .slice(0, MAX_SETS);
+
+  // Like buildWorkout: a row without ORDEN belongs to the block of the row above.
+  let previousOrder = "";
+  const data = rows.slice(headerAt + 1).flatMap((row, i) => {
+    const order = label(row[orderIdx]) || previousOrder;
+    previousOrder = order;
+    if (!row[nameIdx]?.trim()) return [];
+    const sets = loadColumns
+      .map((c, set) => ({ set: set + 1, load: toNumber(row[c]), reps: toNumber(row[c + 1]) }))
+      .filter(({ load, reps }) => load !== undefined || reps !== undefined);
+    return [{ row: MI_FIRST_ROW + headerAt + 1 + i, order, name: label(row[nameIdx]), sets }];
+  });
+
+  return { selection: { week: label(selector[1]), day: label(selector[3]) }, loadColumns, rows: data };
+}
+
+const isOpenDay = (sheet: SheetLoads | null, { week, day }: DaySelection): sheet is SheetLoads =>
+  sheet?.selection.week === week && sheet.selection.day === day;
+
+/** The MI_PLANIFICACION row of an exercise (by name and ORDEN; by name alone if that's unambiguous). */
+export function findSheetRow(sheet: SheetLoads, exercise: Pick<Exercise, "name" | "order">): SheetRow | undefined {
+  const named = sheet.rows.filter((r) => r.name === label(exercise.name));
+  return named.find((r) => r.order === label(exercise.order)) ?? (named.length === 1 ? named[0] : undefined);
+}
+
+/**
+ * Saved results, with every exercise of MI_PLANIFICACION taken from the sheet as is: it's the
+ * newest for the open day, so cells cleared there stay cleared even if REGISTRO_PLANIFICACION
+ * has older rows. Exercises not in the sheet keep what REGISTRO_PLANIFICACION has.
+ */
+export function mergeSheetLoads(saved: SavedResults, sheet: SheetLoads): SavedResults {
+  const merged = { ...saved };
+  for (const { name } of sheet.rows) delete merged[name];
+  // An exercise can appear twice (in two blocks): keep the row that has loads.
+  for (const { name, sets } of sheet.rows) if (sets.length) merged[name] = sets;
+  return merged;
+}
+
+const columnLetter = (index: number): string =>
+  (index >= 26 ? columnLetter(Math.floor(index / 26) - 1) : "") + String.fromCharCode(65 + (index % 26));
+
+/** Cell writes that put the app's Carga/Reps on one MI_PLANIFICACION row (empty values clear the cell). */
+export function sheetLoadCells(sheet: SheetLoads, row: number, sets: SetResult[]) {
+  const tab = MI_RANGE.split("!")[0];
+  return sets
+    .filter(({ set }) => set <= sheet.loadColumns.length)
+    .map(({ set, load, reps }) => {
+      const c = sheet.loadColumns[set - 1];
+      return {
+        range: `${tab}!${columnLetter(c)}${row}:${columnLetter(c + 1)}${row}`,
+        values: [[load ?? "", reps ?? ""]],
+      };
+    });
+}
+
 export async function getSavedResults(athlete: Athlete, selection: DaySelection): Promise<SavedResults> {
   if (!athlete.spreadsheetId) return {};
-  return parseResults(await readRange(athlete.spreadsheetId, REGISTRO_RANGE), athlete.id, selection);
+  // Fresh: the athlete may have just typed or cleared loads in the sheet.
+  const [registro, sheetRows] = await Promise.all([
+    readRange(athlete.spreadsheetId, REGISTRO_RANGE, { fresh: true }),
+    readRange(athlete.spreadsheetId, MI_RANGE, { fresh: true }),
+  ]);
+  const saved = parseResults(registro, athlete.id, selection);
+  const sheet = parseSheetLoads(sheetRows);
+  return isOpenDay(sheet, selection) ? mergeSheetLoads(saved, sheet) : saved;
 }
 
 export class ResultError extends Error {}
@@ -143,7 +222,8 @@ function validSet({ set, load, reps }: SetResult) {
 }
 
 /**
- * Appends the athlete's changed sets for one exercise to REGISTRO_PLANIFICACION.
+ * Appends the athlete's changed sets for one exercise to REGISTRO_PLANIFICACION, and writes them
+ * into MI_PLANIFICACION's Carga/Reps cells when that week/day is the one selected in the sheet.
  * The exercise must be in that athlete's plan for that week/day. Returns how many rows were added.
  */
 export async function saveResults(athlete: Athlete, input: SaveInput): Promise<number> {
@@ -159,7 +239,12 @@ export async function saveResults(athlete: Athlete, input: SaveInput): Promise<n
 
   if (!input.sets.every(validSet)) throw new ResultError("Revisá los valores cargados.");
 
-  const [registro, catalog] = await Promise.all([readRange(id, REGISTRO_RANGE), readRange(id, CATALOG_RANGE)]);
+  const [registro, catalog, sheetRows] = await Promise.all([
+    readRange(id, REGISTRO_RANGE),
+    readRange(id, CATALOG_RANGE),
+    // Fresh: the athlete may have switched week/day in the sheet a moment ago.
+    readRange(id, MI_RANGE, { fresh: true }),
+  ]);
   const rows = buildResultRows({
     header: registro[0] ?? [],
     athlete,
@@ -171,5 +256,10 @@ export async function saveResults(athlete: Athlete, input: SaveInput): Promise<n
     recordedAt: formatRecordedAt(new Date()),
   });
   if (rows.length) await appendRows(id, REGISTRO_RANGE, rows);
+
+  // Mirror the loads in MI_PLANIFICACION when this day is the one open in the sheet.
+  const sheet = parseSheetLoads(sheetRows);
+  const target = isOpenDay(sheet, selection) ? findSheetRow(sheet, exercise) : undefined;
+  if (sheet && target) await writeCells(id, sheetLoadCells(sheet, target.row, input.sets), MI_RANGE);
   return rows.length;
 }

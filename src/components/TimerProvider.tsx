@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useState, type ReactNode } from
 import { DEFAULTS, type TimerConfig } from "@/lib/timer";
 import { Timer } from "./Timer";
 
-/** "open": the setup sheet or the full-screen clock; "minimized": a running clock docked at the bottom. */
+/** "open": the sheet (setup or running clock); "minimized": a running clock docked at the bottom. */
 type View = "closed" | "open" | "minimized";
 
 const OpenTimer = createContext<(config?: TimerConfig) => void>(() => {});

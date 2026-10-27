@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { timerFromText } from "@/lib/timer";
 import type { Block, Exercise } from "@/lib/types";
-import { TimerIcon } from "./icons";
+import { ChevronIcon, TimerIcon } from "./icons";
 import { TimerButton } from "./TimerProvider";
 
 /** Extra content under an exercise (e.g. the Carga/Reps logger of personalized plans). */
@@ -53,14 +53,6 @@ function blockLabels(title: string): { badge: string; name: string } {
 function preview(block: Block) {
   const names = block.exercises.length ? block.exercises.map((e) => e.name) : block.lines;
   return names.slice(0, 3).join(" · ");
-}
-
-function Chevron() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden className="size-5 shrink-0 text-muted transition-transform group-open:rotate-180">
-      <path d="M5 7.5 10 12.5 15 7.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
 }
 
 function ExerciseItem({ exercise, block, extra }: { exercise: Exercise; block: string; extra?: RenderExtra }) {
@@ -155,7 +147,7 @@ export function WorkoutBlocks({
                 <span className="line-clamp-2 font-display text-xl leading-tight font-bold uppercase">{preview(block)}</span>
               </span>
               {renderAside?.(block)}
-              <Chevron />
+              <ChevronIcon className="size-5 shrink-0 text-muted transition-transform group-open:rotate-180" />
             </summary>
             <div className="border-t border-line px-4 pb-3">
               {block.lines.length > 0 && (

@@ -15,6 +15,7 @@ import {
   type TimerMode,
 } from "@/lib/timer";
 import { DayTitle } from "./DayTitle";
+import { ChevronIcon } from "./icons";
 
 const MODES: { mode: TimerMode; label: string; hint: string }[] = [
   { mode: "amrap", label: "AMRAP", hint: "Máximas rondas en el tiempo" },
@@ -70,16 +71,29 @@ function useWakeLock(active: boolean) {
   }, [active]);
 }
 
-/** Keeps the page behind a sheet or the full-screen clock from scrolling. */
-function useScrollLock(active: boolean) {
+/** Panel over the dimmed page (which stays put behind it); tapping the page calls `onDismiss`. */
+function Sheet({ label, onDismiss, className, children }: { label: string; onDismiss: () => void; className: string; children: ReactNode }) {
   useEffect(() => {
-    if (!active) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = previous;
     };
-  }, [active]);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-black/60 pt-[calc(env(safe-area-inset-top)+1.5rem)]" onClick={onDismiss}>
+      <div
+        role="dialog"
+        aria-modal
+        aria-label={label}
+        onClick={(e) => e.stopPropagation()}
+        className={`mx-auto flex w-full max-w-lg flex-1 flex-col overflow-y-auto overscroll-contain rounded-t-3xl border border-b-0 border-line pb-[calc(env(safe-area-inset-bottom)+1.5rem)] ${className}`}
+      >
+        {children}
+      </div>
+    </div>
+  );
 }
 
 // --- Setup ---
@@ -305,7 +319,7 @@ type Run = { startedAt: number | null; banked: number; finished: boolean };
 
 type ClockProps = {
   config: TimerConfig;
-  /** Docked at the bottom of the page instead of full screen; it keeps running either way. */
+  /** Docked at the bottom of the page instead of in the sheet; it keeps running either way. */
   minimized: boolean;
   onMinimize: () => void;
   onExpand: () => void;
@@ -327,7 +341,6 @@ function RunningClock({ config, minimized, onMinimize, onExpand, onEnd }: ClockP
   const countUp = config.mode === "fortime" && state.segment.phase === "work";
 
   useWakeLock(running);
-  useScrollLock(!minimized);
 
   useEffect(() => {
     if (!running) return;
@@ -405,6 +418,7 @@ function RunningClock({ config, minimized, onMinimize, onExpand, onEnd }: ClockP
                 {!state.done && rounds > 1 && round > 0 && ` · ${round}/${rounds}`}
               </span>
             </span>
+            <ChevronIcon className="ml-auto size-6 shrink-0 rotate-180 opacity-60" />
           </button>
           {state.done ? (
             <button type="button" onClick={onEnd} aria-label="Cerrar timer" className={small}>
@@ -424,10 +438,23 @@ function RunningClock({ config, minimized, onMinimize, onExpand, onEnd }: ClockP
     );
   }
 
+  // While the workout is on, leaving the sheet docks it at the bottom; once over, it goes away.
   return (
-    <div className={`fixed inset-0 z-50 flex flex-col px-5 pt-[calc(env(safe-area-inset-top)+1.5rem)] pb-[calc(env(safe-area-inset-bottom)+1.5rem)] transition-colors ${background}`}>
-      <div className="flex items-start justify-between font-display font-bold tracking-widest uppercase">
-        <span className="text-lg opacity-70">{MODES.find((m) => m.mode === config.mode)?.label}</span>
+    <Sheet label="Timer en curso" onDismiss={state.done ? onEnd : onMinimize} className={`px-5 pt-4 transition-colors ${background}`}>
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-display text-lg font-bold tracking-widest uppercase opacity-70">{MODES.find((m) => m.mode === config.mode)?.label}</span>
+        {!state.done && (
+          <button
+            type="button"
+            onClick={onMinimize}
+            className="inline-flex h-10 items-center gap-1.5 rounded-full bg-black/15 pr-4 pl-3 font-display text-base font-bold tracking-wider uppercase"
+          >
+            <ChevronIcon />
+            Minimizar
+          </button>
+        )}
+      </div>
+      <div className="mt-3 flex justify-end font-display font-bold tracking-widest uppercase">
         {!state.done && (
           <span className="flex flex-col items-end tabular-nums">
             {groups && groups > 1 && (
@@ -503,26 +530,25 @@ function RunningClock({ config, minimized, onMinimize, onExpand, onEnd }: ClockP
         </div>
       )}
       <div className="flex gap-3">
-        {/* While the workout is on, closing docks it at the bottom; once over, it goes away. */}
-        <button type="button" onClick={state.done ? onEnd : onMinimize} className={`${control} border-2 border-current`}>
-          Cerrar
-        </button>
-        {!state.done &&
-          (config.mode === "fortime" && state.segment.phase === "work" && running ? (
-            <button type="button" onClick={() => pause(true)} className={`${control} bg-background text-foreground`}>
-              Terminé
-            </button>
-          ) : running ? (
-            <button type="button" onClick={() => pause()} className={`${control} bg-background text-foreground`}>
-              Pausa
-            </button>
-          ) : (
-            <button type="button" onClick={resume} className={`${control} bg-background text-accent`}>
-              Seguir
-            </button>
-          ))}
+        {state.done ? (
+          <button type="button" onClick={onEnd} className={`${control} border-2 border-current`}>
+            Cerrar
+          </button>
+        ) : config.mode === "fortime" && state.segment.phase === "work" && running ? (
+          <button type="button" onClick={() => pause(true)} className={`${control} bg-background text-foreground`}>
+            Terminé
+          </button>
+        ) : running ? (
+          <button type="button" onClick={() => pause()} className={`${control} bg-background text-foreground`}>
+            Pausa
+          </button>
+        ) : (
+          <button type="button" onClick={resume} className={`${control} bg-background text-accent`}>
+            Seguir
+          </button>
+        )}
       </div>
-    </div>
+    </Sheet>
   );
 }
 
@@ -534,13 +560,11 @@ type TimerProps = Omit<ClockProps, "config" | "onEnd"> & {
   onClose: () => void;
 };
 
-/** Setup sheet over the page; once started, the clock (full screen or docked). */
+/** Setup sheet over the page; once started, the clock (in the sheet or docked). */
 export function Timer({ initial, onClose, ...clock }: TimerProps) {
   const [config, setConfig] = useState<TimerConfig>(initial);
   const [runId, setRunId] = useState<number | null>(null);
   const total = workoutSeconds(config);
-
-  useScrollLock(runId === null);
 
   function start() {
     unlockAudio();
@@ -550,28 +574,20 @@ export function Timer({ initial, onClose, ...clock }: TimerProps) {
   if (runId !== null) return <RunningClock key={runId} config={config} onEnd={onClose} {...clock} />;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black/60 pt-[calc(env(safe-area-inset-top)+1.5rem)]" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-modal
-        aria-label="Timer"
-        onClick={(e) => e.stopPropagation()}
-        className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 overflow-y-auto overscroll-contain rounded-t-3xl border border-b-0 border-line bg-background px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <DayTitle eyebrow="Reloj" title="Timer" />
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar timer"
-            className="grid size-10 shrink-0 place-items-center rounded-lg border border-line text-xl text-muted"
-          >
-            ✕
-          </button>
-        </div>
-        <SetupFields initial={initial} config={config} total={total} onChange={setConfig} onStart={start} />
+    <Sheet label="Timer" onDismiss={onClose} className="gap-4 bg-background px-4 pt-5">
+      <div className="flex items-start justify-between gap-3">
+        <DayTitle eyebrow="Reloj" title="Timer" />
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Cerrar timer"
+          className="grid size-10 shrink-0 place-items-center rounded-lg border border-line text-xl text-muted"
+        >
+          ✕
+        </button>
       </div>
-    </div>
+      <SetupFields initial={initial} config={config} total={total} onChange={setConfig} onStart={start} />
+    </Sheet>
   );
 }
 

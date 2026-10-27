@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  durationFromText,
   formatClock,
   PREPARE_SECONDS,
   previousWorkIndex,
+  segmentsAfterJump,
   segmentStart,
   segments,
   stateAt,
+  timerFromExercise,
   timerFromText,
 } from "../src/lib/timer";
 
@@ -121,6 +124,61 @@ describe("timerFromText", () => {
     expect(timerFromText("EN EMOM (TODO EN EL MISMO MIN)")).toBeNull();
     expect(timerFromText("AMRAP CAL/MTS/SEG REMO")).toBeNull();
     expect(timerFromText("8 SUPERMAN")).toBeNull();
+  });
+});
+
+describe("open-ended series", () => {
+  // 3 series of a lift, 2:00 between them, each one as long as it takes.
+  const planned = segments({ mode: "series", groups: [{ sets: 3, setRest: 120, blocks: 1, work: 0, rest: 0, restAfter: 0 }] });
+
+  it("counts a series up until the athlete moves on", () => {
+    expect(planned[1]).toMatchObject({ phase: "work", seconds: Infinity, serie: 1 });
+    expect(stateAt(planned, 10_000)).toMatchObject({ done: false, index: 1 });
+  });
+
+  it("keeps the time a series took when moving on, so the rest starts", () => {
+    const next = segmentsAfterJump(planned, planned, 1, 45, 2);
+    expect(next[1].seconds).toBe(45);
+    expect(next[3].seconds).toBe(Infinity);
+    expect(stateAt(next, segmentStart(next, 2))).toMatchObject({ index: 2, remaining: 120, segment: { phase: "setRest" } });
+  });
+
+  it("reopens a series when going back to it", () => {
+    const moved = segmentsAfterJump(planned, planned, 1, 45, 2);
+    expect(segmentsAfterJump(planned, moved, 2, 30, 1)[1].seconds).toBe(Infinity);
+  });
+
+  it("finishes an open-ended For Time at the time it took", () => {
+    const fortime = segments({ mode: "fortime", cap: 0 });
+    const next = segmentsAfterJump(fortime, fortime, 1, 300, 2);
+    expect(stateAt(next, segmentStart(next, 2)).done).toBe(true);
+  });
+});
+
+describe("timerFromExercise", () => {
+  it("reads rest and timed reps as the coach writes them", () => {
+    expect(durationFromText("2MIN")).toBe(120);
+    expect(durationFromText("2 MIN X RONDA")).toBe(120);
+    expect(durationFromText("1 MIN 30 SEG")).toBe(90);
+    expect(durationFromText("30 SEG")).toBe(30);
+    expect(durationFromText("10+10")).toBeNull();
+  });
+
+  it("opens N open-ended series with the rest between them", () => {
+    expect(timerFromExercise({ sets: "5", reps: "3", rest: "2 MIN" })).toEqual({
+      mode: "series",
+      groups: [{ sets: 5, setRest: 120, blocks: 1, work: 0, rest: 0, restAfter: 0 }],
+    });
+  });
+
+  it("times each series when the reps are a time", () => {
+    expect(timerFromExercise({ sets: "10", reps: "2 MIN", rest: "30 SEG" })?.mode).toBe("series");
+    expect(timerFromExercise({ sets: "10", reps: "2 MIN", rest: "30 SEG" })).toMatchObject({ groups: [{ sets: 10, work: 120, setRest: 30 }] });
+  });
+
+  it("needs a number of series", () => {
+    expect(timerFromExercise({ reps: "10" })).toBeNull();
+    expect(timerFromExercise({ sets: "3-4" })).toBeNull();
   });
 });
 

@@ -6,6 +6,7 @@ import {
   formatClock,
   MAX_GROUPS,
   previousWorkIndex,
+  segmentsAfterJump,
   segmentStart,
   segments,
   stateAt,
@@ -239,7 +240,7 @@ function SeriesFields({ config, onChange }: { config: SeriesConfig; onChange: (c
             <h2 className="font-display text-2xl font-extrabold uppercase">
               {groups.length > 1 ? `Grupo ${i + 1}` : "Estructura"}
               <span className="ml-2 font-sans text-sm font-normal text-muted normal-case">
-                {g.sets} × {g.blocks} bloques · {formatClock(workoutSeconds({ mode: "series", groups: [g] }))}
+                {g.sets} × {g.blocks} bloques · {g.work ? formatClock(workoutSeconds({ mode: "series", groups: [g] })) : "trabajo libre"}
               </span>
             </h2>
             {groups.length > 1 && (
@@ -257,7 +258,25 @@ function SeriesFields({ config, onChange }: { config: SeriesConfig; onChange: (c
             <DurationField label="Descanso entre series" value={g.setRest} step={15} min={0} max={1800} onChange={(setRest) => update(i, { setRest })} />
           )}
           <CountField label="Bloques por serie" value={g.blocks} min={1} max={99} onChange={(blocks) => update(i, { blocks })} />
-          <DurationField label="Trabajo por bloque" value={g.work} step={5} min={5} max={3600} onChange={(work) => update(i, { work })} />
+          <Field label="Trabajo por bloque" hint={g.work ? undefined : "corre hasta que tocás Siguiente"}>
+            {[
+              { label: "Libre", work: 0 },
+              { label: "Con tiempo", work: g.work || DEFAULTS.series.groups[0].work },
+            ].map((option) => (
+              <button
+                key={option.label}
+                type="button"
+                aria-pressed={!g.work === !option.work}
+                onClick={() => update(i, { work: option.work })}
+                className="h-12 flex-1 rounded-xl border border-line font-display text-lg font-bold tracking-wider text-muted uppercase aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-background"
+              >
+                {option.label}
+              </button>
+            ))}
+          </Field>
+          {g.work > 0 && (
+            <DurationField label="Tiempo por bloque" value={g.work} step={5} min={5} max={3600} onChange={(work) => update(i, { work })} />
+          )}
           {g.blocks > 1 && (
             <DurationField label="Descanso entre bloques" value={g.rest} step={5} min={0} max={1800} onChange={(rest) => update(i, { rest })} />
           )}
@@ -328,7 +347,9 @@ type ClockProps = {
 };
 
 function RunningClock({ config, minimized, onMinimize, onExpand, onEnd }: ClockProps) {
-  const list = useMemo(() => segments(config), [config]);
+  const planned = useMemo(() => segments(config), [config]);
+  // Open-ended segments get the time they took once the athlete moves on (see segmentsAfterJump).
+  const [list, setList] = useState(planned);
   const [run, setRun] = useState<Run>(() => ({ startedAt: performance.now(), banked: 0, finished: false }));
   const [now, setNow] = useState(() => performance.now());
   const lastCue = useRef("");
@@ -338,7 +359,8 @@ function RunningClock({ config, minimized, onMinimize, onExpand, onEnd }: ClockP
   // "Terminé" in a For Time ends it at the athlete's time.
   const state = run.finished ? { ...timed, done: true } : timed;
   const running = run.startedAt !== null && !state.done;
-  const countUp = config.mode === "fortime" && state.segment.phase === "work";
+  const openEnded = !Number.isFinite(state.segment.seconds);
+  const countUp = openEnded || (config.mode === "fortime" && state.segment.phase === "work");
 
   useWakeLock(running);
 
@@ -374,14 +396,13 @@ function RunningClock({ config, minimized, onMinimize, onExpand, onEnd }: ClockP
     setNow(at);
     setRun({ startedAt: at, banked: run.banked, finished: false });
   }
-  /** Moves to the start of segment `index` (past the last one = finished), keeping running or paused. */
-  function jumpTo(index: number) {
-    const target = segmentStart(list, index);
-    // Skipping an open-ended For Time ends it at the current time.
-    if (!Number.isFinite(target)) return pause(true);
+  /** Moves to the start of segment `target` (past the last one = finished), keeping running or paused. */
+  function jumpTo(target: number) {
+    const next = segmentsAfterJump(planned, list, state.index, state.elapsed, target);
     const at = performance.now();
+    setList(next);
     setNow(at);
-    setRun({ startedAt: run.startedAt === null ? null : at, banked: target, finished: false });
+    setRun({ startedAt: run.startedAt === null ? null : at, banked: segmentStart(next, target), finished: false });
   }
 
   const phase = state.done ? "done" : state.segment.phase;
@@ -492,7 +513,7 @@ function RunningClock({ config, minimized, onMinimize, onExpand, onEnd }: ClockP
             {state.segment.phase === "setRest" ? `Sigue serie ${(serie ?? 0) + 1}` : `Sigue grupo ${(group ?? 0) + 1}`}
           </p>
         )}
-        {!state.done && (
+        {!state.done && !openEnded && (
           <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-black/20">
             <div className="h-full rounded-full bg-current" style={{ width: `${Math.min(100, progress * 100)}%` }} />
           </div>
@@ -520,10 +541,11 @@ function RunningClock({ config, minimized, onMinimize, onExpand, onEnd }: ClockP
           >
             ⏮ Anterior
           </button>
+          {/* An open-ended series only ends here, so it stands out. */}
           <button
             type="button"
             onClick={() => jumpTo(state.index + 1)}
-            className="h-12 flex-1 rounded-xl bg-black/15 font-display text-lg font-bold tracking-wider uppercase"
+            className={`h-12 flex-1 rounded-xl font-display text-lg font-bold tracking-wider uppercase ${openEnded ? "bg-background text-foreground" : "bg-black/15"}`}
           >
             Siguiente ⏭
           </button>

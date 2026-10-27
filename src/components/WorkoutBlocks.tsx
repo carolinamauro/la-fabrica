@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { timerFromText } from "@/lib/timer";
+import { timerFromExercise, timerFromText } from "@/lib/timer";
 import type { Block, Exercise } from "@/lib/types";
 import { ChevronIcon, TimerIcon } from "./icons";
 import { TimerButton } from "./TimerProvider";
@@ -59,8 +59,10 @@ function ExerciseItem({ exercise, block, extra }: { exercise: Exercise; block: s
   const { name, order, sets, reps, target, rest, interval, notes } = exercise;
   const volume = sets && reps ? `${sets}×${reps}` : sets ? `${sets} series` : reps;
   const tags = [target, interval].filter(Boolean);
-  // "C. EMOM X 15 MIN" can be the name itself, or the INTERVALO column of a personalized plan.
-  const timer = [name, interval].map((text) => (text ? timerFromText(text) : null)).find((config) => config) ?? undefined;
+  // "C. EMOM X 15 MIN" can be the name itself, or the INTERVALO column of a personalized plan;
+  // otherwise its series and rest ("5 series, pausa 2 MIN").
+  const timer =
+    [name, interval].map((text) => (text ? timerFromText(text) : null)).find((config) => config) ?? timerFromExercise(exercise) ?? undefined;
   // "B" repeats the block header; "B1" still tells the exercises of a superset apart.
   const showOrder = order && order !== block;
 

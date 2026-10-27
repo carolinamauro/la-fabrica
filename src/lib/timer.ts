@@ -1,10 +1,13 @@
 // Workout timer: the modes of a CrossFit box clock, as a list of timed segments.
 
+import type { Exercise } from "./types";
+
 /**
  * A group of the "Series" mode: `sets` series with `setRest` between them; each series is
  * `blocks` blocks of `work` with `rest` between blocks. `restAfter` comes before the next group
  * (for a workout whose series change shape). All times in seconds.
  * E.g. 10 series (1:00 between them) of 5 blocks of 4:00 work / 0:30 rest.
+ * A `work` of 0 is open-ended: it counts up until the athlete moves on ("5 series de fuerza").
  */
 export type SeriesGroup = { sets: number; setRest: number; blocks: number; work: number; rest: number; restAfter: number };
 
@@ -64,7 +67,7 @@ function seriesSegments(groups: SeriesGroup[]): Segment[] {
     const group = { group: gi + 1, groups: groups.length };
     for (let serie = 1; serie <= g.sets; serie++) {
       const position = { ...group, serie, series: g.sets };
-      list.push(...repetitions(g.work, g.rest, g.blocks, position));
+      list.push(...repetitions(g.work > 0 ? g.work : Infinity, g.rest, g.blocks, position));
       if (serie < g.sets && g.setRest > 0) list.push({ phase: "setRest", seconds: g.setRest, round: 0, rounds: 0, ...position });
     }
     if (gi < groups.length - 1 && g.restAfter > 0) {
@@ -128,6 +131,19 @@ export function segmentStart(list: Segment[], index: number): number {
 }
 
 /**
+ * The segments once the clock moves from segment `index` (`elapsed` seconds into it) to `target`.
+ * An open-ended segment left forward keeps the time it took, so the running time stays finite;
+ * from `target` on, segments are as planned again (going back to an open-ended one reopens it).
+ */
+export function segmentsAfterJump(planned: Segment[], current: Segment[], index: number, elapsed: number, target: number): Segment[] {
+  return current.map((segment, i) => {
+    if (i >= target) return planned[i];
+    if (i === index && !Number.isFinite(segment.seconds)) return { ...segment, seconds: elapsed };
+    return segment;
+  });
+}
+
+/**
  * Where "previous" jumps from segment `index`: the start of the last work block before it
  * (so from a block or the rest after it, you redo the block before), or the first segment.
  */
@@ -186,4 +202,24 @@ export function timerFromText(text: string): TimerConfig | null {
   }
 
   return null;
+}
+
+/** Seconds in "2 MIN", "2MIN", "30 SEG" or "1 MIN 30 SEG" (as DESCANSO and timed reps are written). */
+export function durationFromText(text: string | undefined): number | null {
+  const t = (text ?? "").toUpperCase();
+  const minutes = t.match(/(\d+)\s*MIN/);
+  const seconds = t.match(/(\d+)\s*SEG/);
+  if (!minutes && !seconds) return null;
+  return (minutes ? Number(minutes[1]) * 60 : 0) + (seconds ? Number(seconds[1]) : 0);
+}
+
+/**
+ * "Series" for an exercise of N series, with its DESCANSO between them. Each series lasts the reps
+ * when they are a time ("10 × 2 MIN"), or is open-ended otherwise (lifts: "Siguiente" when done).
+ */
+export function timerFromExercise({ sets, reps, rest }: Pick<Exercise, "sets" | "reps" | "rest">): TimerConfig | null {
+  const count = Number(sets?.trim());
+  if (!Number.isInteger(count) || count < 1) return null;
+  const group = { sets: Math.min(count, 99), setRest: durationFromText(rest) ?? 0, blocks: 1, work: durationFromText(reps) ?? 0, rest: 0, restAfter: 0 };
+  return { mode: "series", groups: [group] };
 }

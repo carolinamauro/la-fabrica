@@ -5,9 +5,10 @@ import { MAX_SETS, type DaySelection, type Exercise } from "./types";
 
 export { MAX_SETS };
 
-// Results log read by the coach's DASHBOARD and HISTORIAL tabs.
-const REGISTRO_RANGE = "REGISTRO_PLANIFICACION!A:P";
-const CATALOG_RANGE = "CATALOGO_EJERCICIOS!A:Z";
+// Results log read by the coach's DASHBOARD and HISTORIAL tabs (and the app's Historial, which
+// shares this cache key so a save shows up there right away).
+export const REGISTRO_RANGE = "REGISTRO_PLANIFICACION!A:P";
+export const CATALOG_RANGE = "CATALOGO_EJERCICIOS!A:Z";
 const TIME_ZONE = "America/Argentina/Buenos_Aires";
 
 export type SetResult = { set: number; load?: number; reps?: number };
@@ -28,8 +29,11 @@ function toNumber(value: string | undefined): number | undefined {
 
 const round = (value: number, decimals: number) => Math.round(value * 10 ** decimals) / 10 ** decimals;
 
+/** Estimated 1RM (Epley) unrounded, as HISTORIAL computes it from CARGA and REPS_REALES. */
+export const estimateOneRepMax = (load: number, reps: number) => load * (1 + reps / 30);
+
 /** Estimated 1RM (Epley), as the sheet already stores it. */
-export const epley = (load: number, reps: number) => round(load * (1 + reps / 30), 1);
+export const epley = (load: number, reps: number) => round(estimateOneRepMax(load, reps), 1);
 
 /** How many set rows to show: the prescribed SERIES, between 1 and 6. */
 export function setCount(sets: string | undefined): number {

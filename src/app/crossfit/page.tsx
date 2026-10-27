@@ -22,7 +22,7 @@ export default async function CrossfitPage({ searchParams }: PageProps<"/crossfi
       name={athlete.firstName}
       params={params}
       path="/crossfit"
-      nav={<PlanSwitcher plans={plans} active="CROSSFIT" />}
+      nav={<PlanSwitcher plans={plans} active="CROSSFIT" history={Boolean(athlete.spreadsheetId)} />}
     />
   );
 }

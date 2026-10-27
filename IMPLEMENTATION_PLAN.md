@@ -14,6 +14,7 @@
 | Today / week | The current week and its days; tap a day |
 | Workout | Blocks and exercises with sets, reps, RPE / %, rest and notes, in big readable cards |
 | Anexo (CrossFit only) | The strength and gymnastics accessory plans, as two tabs |
+| Historial (athletes with their own file) | Like the `HISTORIAL` tab for any catalog exercise with `REGISTRAR_HISTORIAL = SI`: best load, E1RM, ratio BW, last record, progress, an evolution chart and the day-by-day log (best E1RM set per day). Computed in the app from the athlete's `REGISTRO_PLANIFICACION` rows; it never writes to `HISTORIAL` |
 
 Plus: installable on the home screen (PWA manifest + icon), a "refresh" pull, and a button "Abrir mi planilla" that opens the athlete's sheet to log loads as they do today.
 

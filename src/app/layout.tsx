@@ -30,6 +30,9 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: "#0a0c0c",
+  // Already dark: Android browsers that darken pages (Chrome's auto-dark, Samsung Internet)
+  // leave it alone instead of flattening the cards into the background.
+  colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

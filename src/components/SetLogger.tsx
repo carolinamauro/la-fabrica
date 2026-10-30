@@ -110,12 +110,12 @@ export function SetLogger({ week, day, name, order, setCount, saved, note, previ
 
   function update(index: number, field: keyof Row, value: string) {
     setRows((current) => {
-      // The first series' load fills the others (most series repeat it), but only the ones still
-      // empty or holding the copied value, never a load typed on purpose.
-      const copied = index === 0 && field === "load" ? current[0].load : null;
+      // The first series' load and reps fill the others (most series repeat them), but only the
+      // ones still empty or holding the copied value, never a value typed on purpose.
+      const copied = index === 0 ? current[0][field] : null;
       return current.map((row, i) => {
         if (i === index) return { ...row, [field]: value };
-        if (copied !== null && (row.load === "" || row.load === copied)) return { ...row, load: value };
+        if (copied !== null && (row[field] === "" || row[field] === copied)) return { ...row, [field]: value };
         return row;
       });
     });

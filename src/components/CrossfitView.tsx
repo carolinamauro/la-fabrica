@@ -5,6 +5,9 @@ import { DayTitle } from "./DayTitle";
 import { homeHref, prettyLabel } from "./format";
 import { WorkoutBlocks } from "./WorkoutBlocks";
 
+// CrossFit plans are shared, so the calculator starts without an RM and saves none.
+const CROSSFIT_CALCULATOR = { bestLoads: {}, canSave: false };
+
 export type CrossfitTab = "entrenamiento" | "anexo";
 
 /** "PLAN DE GIMNASTICOS" → "Gimnásticos". */
@@ -26,7 +29,7 @@ export function CrossfitWorkout({ plan, path = "/" }: { plan: CrossfitPlan; path
         }))}
       />
       <DayTitle eyebrow={plan.workout.week && prettyLabel(plan.workout.week)} title={prettyLabel(plan.selectedDay)} />
-      <WorkoutBlocks blocks={plan.workout.blocks} />
+      <WorkoutBlocks blocks={plan.workout.blocks} calculator={CROSSFIT_CALCULATOR} />
     </>
   );
 }
@@ -75,7 +78,7 @@ export function AnexoView({
               active: w.week === selected.week,
             }))}
           />
-          <WorkoutBlocks blocks={selected.blocks.map((b) => ({ ...b, title: prettyLabel(b.title) }))} />
+          <WorkoutBlocks blocks={selected.blocks.map((b) => ({ ...b, title: prettyLabel(b.title) }))} calculator={CROSSFIT_CALCULATOR} />
         </>
       ) : (
         <p className="text-muted">Este plan todavía no tiene semanas cargadas.</p>

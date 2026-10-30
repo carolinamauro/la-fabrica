@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { findAthleteByEmail } from "@/lib/athletes";
-import { ResultError, saveResults, type SaveInput } from "@/lib/results";
+import { ResultError, saveResults, saveRm, type SaveInput } from "@/lib/results";
 import { getSession, SESSION_COOKIE } from "@/lib/session";
 import { clearSheetCache } from "@/lib/sheets";
 
@@ -40,5 +40,21 @@ export async function saveSetsAction(input: SaveInput): Promise<SaveSetsResult> 
     }
     console.error("saveSetsAction failed", { athleteId: athlete.id, error });
     return { ok: false, error: "No pudimos guardar. Revisá tu conexión y probá de nuevo." };
+  }
+}
+
+/** Saves an RM typed in the load calculator (only when it beats the athlete's best load). */
+export async function saveRmAction(input: { name: string; rm: number }): Promise<SaveSetsResult> {
+  const session = await getSession();
+  const athlete = session ? await findAthleteByEmail(session.email) : null;
+  if (!athlete || athlete.planType !== "PERSONALIZED") return { ok: false, error: "Tu sesión expiró. Volvé a ingresar." };
+
+  try {
+    await saveRm(athlete, input);
+    return { ok: true };
+  } catch (error) {
+    if (error instanceof ResultError) return { ok: false, error: error.message };
+    console.error("saveRmAction failed", { athleteId: athlete.id, error });
+    return { ok: false, error: "No pudimos guardar tu RM. Revisá tu conexión y probá de nuevo." };
   }
 }

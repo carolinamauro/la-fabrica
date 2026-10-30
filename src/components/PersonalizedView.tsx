@@ -51,6 +51,7 @@ export function PersonalizedView({ plan, saved }: { plan: PersonalizedPlan; save
       <WorkoutBlocks
         blocks={workout.blocks}
         renderAside={(block) => <BlockProgress block={block} saved={saved.sets} />}
+        calculator={{ bestLoads: saved.bestLoads, canSave: true }}
         renderExtra={(exercise) => (
           <SetLogger
             // Remount when the day changes so inputs show that day's values.

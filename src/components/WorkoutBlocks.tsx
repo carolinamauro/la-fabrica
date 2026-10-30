@@ -3,12 +3,20 @@ import { timerFromExercise, timerFromText } from "@/lib/timer";
 import type { Block, Exercise } from "@/lib/types";
 import { ExerciseVideoButton } from "./ExerciseVideoButton";
 import { ChevronIcon, TimerIcon } from "./icons";
+import { LoadCalculator } from "./LoadCalculator";
 import { TimerButton } from "./TimerProvider";
 
 /** Extra content under an exercise (e.g. the Carga/Reps logger of personalized plans). */
 type RenderExtra = (exercise: Exercise) => ReactNode;
 /** Extra content on the right of a collapsed block header (e.g. series progress). */
 type RenderAside = (block: Block) => ReactNode;
+/**
+ * The load calculator on each exercise's effort: `bestLoads` (by uppercase name) are the
+ * default RMs, and `canSave` lets a higher RM be saved to the athlete's sheet.
+ */
+export type CalculatorOptions = { bestLoads: Record<string, number>; canSave: boolean };
+
+const nameKey = (name: string) => name.trim().toUpperCase().replace(/\s+/g, " ");
 
 // Section headers in free text: "A. 3 RONDAS:", "C. EMOM X 15 MIN".
 const SECTION = /^[A-Z]\d?\s*[.:]\s|:$/;
@@ -56,10 +64,23 @@ function preview(block: Block) {
   return names.slice(0, 3).join(" · ");
 }
 
-function ExerciseItem({ exercise, block, extra }: { exercise: Exercise; block: string; extra?: RenderExtra }) {
+function ExerciseItem({
+  exercise,
+  block,
+  extra,
+  calculator,
+}: {
+  exercise: Exercise;
+  block: string;
+  extra?: RenderExtra;
+  calculator?: CalculatorOptions;
+}) {
   const { name, order, sets, reps, target, rest, interval, notes, video } = exercise;
   const volume = sets && reps ? `${sets}×${reps}` : sets ? `${sets} series` : reps;
-  const tags = [target, interval].filter(Boolean);
+  const bestLoad = calculator?.bestLoads[nameKey(name)];
+  // The effort becomes the calculator's tag; without one, exercises with logged loads still get it.
+  const withCalculator = calculator && (target || bestLoad) ? calculator : undefined;
+  const tags = [withCalculator ? undefined : target, interval].filter(Boolean);
   // "C. EMOM X 15 MIN" can be the name itself, or the INTERVALO column of a personalized plan;
   // otherwise its series and rest ("5 series, pausa 2 MIN").
   const timer =
@@ -98,8 +119,11 @@ function ExerciseItem({ exercise, block, extra }: { exercise: Exercise; block: s
           {video && <ExerciseVideoButton name={name} video={video} />}
         </div>
       </div>
-      {(tags.length > 0 || rest) && (
+      {(tags.length > 0 || rest || withCalculator) && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5 text-sm">
+          {withCalculator && (
+            <LoadCalculator name={name} target={target} reps={reps} bestLoad={bestLoad} canSave={withCalculator.canSave} />
+          )}
           {tags.map((tag) => (
             <span key={tag} className="rounded-md bg-accent-soft px-2 py-0.5 font-semibold text-accent">
               {tag}
@@ -127,10 +151,12 @@ export function WorkoutBlocks({
   blocks,
   renderExtra,
   renderAside,
+  calculator,
 }: {
   blocks: Block[];
   renderExtra?: RenderExtra;
   renderAside?: RenderAside;
+  calculator?: CalculatorOptions;
 }) {
   if (!blocks.length) {
     return <p className="rounded-2xl border border-line bg-card p-5 text-muted">No hay ejercicios cargados para este día.</p>;
@@ -170,7 +196,7 @@ export function WorkoutBlocks({
               {block.exercises.length > 0 && (
                 <ul className="divide-y divide-line">
                   {block.exercises.map((exercise, j) => (
-                    <ExerciseItem key={j} exercise={exercise} block={block.title} extra={renderExtra} />
+                    <ExerciseItem key={`${exercise.order}-${exercise.name}-${j}`} exercise={exercise} block={block.title} extra={renderExtra} calculator={calculator} />
                   ))}
                 </ul>
               )}

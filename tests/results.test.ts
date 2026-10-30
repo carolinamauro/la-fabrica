@@ -4,8 +4,10 @@ import {
   epley,
   findSheetRow,
   formatRecordedAt,
+  buildRmRow,
   mergeSheetLoads,
   mergeSheetNotes,
+  parseBestLoads,
   parseE1rmExercises,
   parseNotes,
   parseResults,
@@ -231,5 +233,36 @@ describe("MI_PLANIFICACION loads", () => {
 
   it("returns null when the tab has no header", () => {
     expect(parseSheetLoads([["SEMANA :", "SEMANA 1"]])).toBeNull();
+  });
+});
+
+describe("RM from the load calculator", () => {
+  it("is a one-rep row without week, day or series, so HISTORIAL takes it as the best load", () => {
+    const row = buildRmRow({
+      header: HEADER,
+      athlete: { id: "ATL_A", bodyWeightKg: 80 },
+      name: "BENCH PRESS",
+      rm: 70,
+      withE1rm: true,
+      recordedAt: "2026-10-30 09:00:00",
+    });
+    expect(row).toEqual(["2026-10-30 09:00:00", "ATL_A", "", "", "BENCH PRESS", "", "", 70, 1, 70, "KG", "", "RM", 80, 72.3, 0.9]);
+    // Not a series of any day, nor a note.
+    // As the sheet returns it: every cell as text.
+    const rows = [HEADER, row.map(String)];
+    expect(parseResults(rows, "ATL_A", selection)).toEqual({});
+    expect(parseNotes(rows, "ATL_A", selection)["BENCH PRESS"]).toEqual({ note: "" });
+  });
+
+  it("best loads are the heaviest CARGA of each exercise on any day", () => {
+    const rows = [
+      HEADER,
+      row("ATL_A", "SEMANA 1", "DIA 2", "HIP THRUST", "1", "100", "8"),
+      row("ATL_A", "SEMANA 3", "DIA 1", "Hip Thrust", "2", "97,50 KG", "8"),
+      row("ATL_A", "SEMANA 2", "DIA 1", "HIP THRUST", "1", "110", "5"),
+      row("ATL_A", "SEMANA 1", "DIA 2", "PULL UP", "1", "", "12"),
+      row("ATL_B", "SEMANA 1", "DIA 2", "HIP THRUST", "1", "200", "1"),
+    ];
+    expect(parseBestLoads(rows, "ATL_A")).toEqual({ "HIP THRUST": 110 });
   });
 });

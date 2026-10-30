@@ -18,8 +18,13 @@ export type SavedResults = Record<string, SetResult[]>;
 export type ExerciseNote = DaySelection & { note: string };
 /** Per exercise name (uppercase): the note for the day shown, and the latest one of another day. */
 export type SavedNotes = Record<string, { note: string; previous?: ExerciseNote }>;
-/** What the athlete saved for one day. */
-export type SavedDay = { sets: SavedResults; notes: SavedNotes };
+/** Per exercise name (uppercase): the heaviest CARGA ever logged, like HISTORIAL's MEJOR CARGA. */
+export type BestLoads = Record<string, number>;
+/** What the athlete saved for one day, and their best loads (the load calculator's RM). */
+export type SavedDay = { sets: SavedResults; notes: SavedNotes; bestLoads: BestLoads };
+
+// OBJETIVO of a row that is an RM the athlete typed in the load calculator.
+const RM_TARGET = "RM";
 
 
 const label = (value: string | undefined) => (value ?? "").trim().toUpperCase().replace(/\s+/g, " ");
@@ -103,6 +108,22 @@ export function parseNotes(rows: string[][], athleteId: string, { week, day }: D
     else if (note) entry.previous = { week: label(row[idx.week]), day: label(row[idx.day]), note };
   }
   return notes;
+}
+
+/** The heaviest CARGA of each exercise on any day (RMs typed in the calculator included). */
+export function parseBestLoads(rows: string[][], athleteId: string): BestLoads {
+  const [header = [], ...data] = rows;
+  const col = headerIndex(header);
+  const idx = { id: col("ID_ATLETA"), name: col("EJERCICIO"), load: col("CARGA") };
+  if (Object.values(idx).some((i) => i < 0)) return {};
+  const best: BestLoads = {};
+  for (const row of data) {
+    const load = toNumber(row[idx.load]);
+    if (row[idx.id]?.trim() !== athleteId || load === undefined) continue;
+    const name = label(row[idx.name]);
+    best[name] = Math.max(best[name] ?? 0, load);
+  }
+  return best;
 }
 
 /** Exercise names (uppercase) the catalog marks with E1RM = SI. */
@@ -275,7 +296,7 @@ export function sheetLoadCells(sheet: SheetLoads, row: number, sets: SetResult[]
 }
 
 export async function getSavedResults(athlete: Athlete, selection: DaySelection): Promise<SavedDay> {
-  if (!athlete.spreadsheetId) return { sets: {}, notes: {} };
+  if (!athlete.spreadsheetId) return { sets: {}, notes: {}, bestLoads: {} };
   // Fresh: the athlete may have just typed or cleared loads in the sheet.
   const [registro, sheetRows] = await Promise.all([
     readRange(athlete.spreadsheetId, REGISTRO_RANGE, { fresh: true }),
@@ -283,10 +304,11 @@ export async function getSavedResults(athlete: Athlete, selection: DaySelection)
   ]);
   const sets = parseResults(registro, athlete.id, selection);
   const notes = parseNotes(registro, athlete.id, selection);
+  const bestLoads = parseBestLoads(registro, athlete.id);
   const sheet = parseSheetLoads(sheetRows);
   return isOpenDay(sheet, selection)
-    ? { sets: mergeSheetLoads(sets, sheet), notes: mergeSheetNotes(notes, sheet) }
-    : { sets, notes };
+    ? { sets: mergeSheetLoads(sets, sheet), notes: mergeSheetNotes(notes, sheet), bestLoads }
+    : { sets, notes, bestLoads };
 }
 
 export class ResultError extends Error {}
@@ -349,4 +371,63 @@ export async function saveResults(athlete: Athlete, input: SaveInput): Promise<n
   // Mirror the loads and note in MI_PLANIFICACION when this day is the one open in the sheet.
   if (sheet && target) await writeCells(id, sheetLoadCells(sheet, target.row, input.sets, note), MI_RANGE);
   return rows.length;
+}
+
+/**
+ * A REGISTRO_PLANIFICACION row for an RM the athlete typed in the load calculator: one rep at
+ * that load, without week, day or series, so HISTORIAL takes it as their MEJOR CARGA (and its
+ * E1RM) while the day's series and notes stay as they are.
+ */
+export function buildRmRow({ header, athlete, name, rm, withE1rm, recordedAt }: {
+  header: string[];
+  athlete: Pick<Athlete, "id" | "bodyWeightKg">;
+  name: string;
+  rm: number;
+  withE1rm: boolean;
+  recordedAt: string;
+}) {
+  const e1rm = withE1rm ? epley(rm, 1) : undefined;
+  const values: Record<string, string | number | undefined> = {
+    FECHA: recordedAt,
+    ID_ATLETA: athlete.id,
+    EJERCICIO: name,
+    CARGA: rm,
+    REPS_REALES: 1,
+    RESULTADO: rm,
+    UNIDAD: "KG",
+    OBJETIVO: RM_TARGET,
+    PESO_CORPORAL: athlete.bodyWeightKg,
+    E1RM: e1rm,
+    RATIO_BW: e1rm && athlete.bodyWeightKg ? round(e1rm / athlete.bodyWeightKg, 2) : undefined,
+  };
+  return header.map((h) => values[label(h)] ?? "");
+}
+
+/**
+ * Saves an RM typed in the load calculator, when it beats the athlete's best load for that
+ * exercise of their plan. Returns whether a row was added.
+ */
+export async function saveRm(athlete: Athlete, input: { name: string; rm: number }): Promise<boolean> {
+  if (!athlete.spreadsheetId) throw new ResultError("Tu planilla todavía no está configurada.");
+  const id = athlete.spreadsheetId;
+  if (!(Number.isFinite(input.rm) && input.rm > 0 && input.rm <= 1000)) throw new ResultError("Revisá el RM.");
+  const exercise = parsePlanRows(await readRange(id, PLAN_RANGE), athlete.id).find(
+    (row) => label(row.exercise.name) === label(input.name),
+  )?.exercise;
+  if (!exercise) throw new ResultError("Este ejercicio ya no está en tu planificación. Actualizá la página.");
+
+  const [registro, catalog] = await Promise.all([readRange(id, REGISTRO_RANGE, { fresh: true }), readRange(id, CATALOG_RANGE)]);
+  const best = parseBestLoads(registro, athlete.id)[label(exercise.name)] ?? 0;
+  if (input.rm <= best) return false;
+
+  const row = buildRmRow({
+    header: registro[0] ?? [],
+    athlete,
+    name: exercise.name,
+    rm: input.rm,
+    withE1rm: parseE1rmExercises(catalog).has(label(exercise.name)),
+    recordedAt: formatRecordedAt(new Date()),
+  });
+  await appendRows(id, REGISTRO_RANGE, [row]);
+  return true;
 }

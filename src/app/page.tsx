@@ -33,7 +33,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     getAvailablePlans(athlete),
     getPersonalizedPlan(athlete, { week: params.week, day: params.day }),
   ]);
-  const saved = plan ? await getSavedResults(athlete, plan.selected) : { sets: {}, notes: {} };
+  const saved = plan ? await getSavedResults(athlete, plan.selected) : { sets: {}, notes: {}, bestLoads: {} };
   return (
     <AppShell name={athlete.firstName} nav={<PlanSwitcher plans={plans} active="PERSONALIZED" history={Boolean(athlete.spreadsheetId)} />}>
       {plan ? (

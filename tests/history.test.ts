@@ -120,6 +120,7 @@ describe("parseHistoryRecords", () => {
         { at: "25/08/2026 12:08:05", name: "snatch", load: "85", reps: "3" },
         { at: "25/08/2026 12:08:05", name: "SNATCH", id: "ATL_B", load: "40", reps: "3" },
         { at: "sin fecha", name: "SNATCH", load: "90", reps: "1" },
+        { at: "25/08/2026 12:10:00", name: "SNATCH", set: "" }, // only the athlete's note
       ),
       " ATL_A ",
     );

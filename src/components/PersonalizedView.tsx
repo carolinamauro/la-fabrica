@@ -1,5 +1,5 @@
 import type { PersonalizedPlan } from "@/lib/personalized";
-import { resultKey, setCount, type SavedResults } from "@/lib/results";
+import { resultKey, setCount, type SavedDay, type SavedResults } from "@/lib/results";
 import type { Block } from "@/lib/types";
 import { Chips } from "./Chips";
 import { DayTitle } from "./DayTitle";
@@ -25,7 +25,7 @@ function BlockProgress({ block, saved }: { block: Block; saved: SavedResults }) 
   );
 }
 
-export function PersonalizedView({ plan, saved }: { plan: PersonalizedPlan; saved: SavedResults }) {
+export function PersonalizedView({ plan, saved }: { plan: PersonalizedPlan; saved: SavedDay }) {
   const { weeks, selected, workout } = plan;
   const days = weeks.find((w) => w.week === selected.week)?.days ?? [];
 
@@ -50,7 +50,7 @@ export function PersonalizedView({ plan, saved }: { plan: PersonalizedPlan; save
       <DayTitle eyebrow={prettyLabel(selected.week)} title={prettyLabel(selected.day)} />
       <WorkoutBlocks
         blocks={workout.blocks}
-        renderAside={(block) => <BlockProgress block={block} saved={saved} />}
+        renderAside={(block) => <BlockProgress block={block} saved={saved.sets} />}
         renderExtra={(exercise) => (
           <SetLogger
             // Remount when the day changes so inputs show that day's values.
@@ -60,7 +60,9 @@ export function PersonalizedView({ plan, saved }: { plan: PersonalizedPlan; save
             name={exercise.name}
             order={exercise.order}
             setCount={setCount(exercise.sets)}
-            saved={saved[resultKey(exercise.name)] ?? []}
+            saved={saved.sets[resultKey(exercise.name)] ?? []}
+            note={saved.notes[resultKey(exercise.name)]?.note ?? ""}
+            previousNote={saved.notes[resultKey(exercise.name)]?.previous}
           />
         )}
       />

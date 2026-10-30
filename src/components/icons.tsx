@@ -34,3 +34,12 @@ export function RefreshIcon({ className = "size-6" }: { className?: string }) {
     </svg>
   );
 }
+
+/** Play triangle, for exercise videos. */
+export function PlayIcon({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden className={className} fill="currentColor">
+      <path d="M4 2.5v11a.5.5 0 0 0 .76.43l9-5.5a.5.5 0 0 0 0-.86l-9-5.5A.5.5 0 0 0 4 2.5Z" />
+    </svg>
+  );
+}

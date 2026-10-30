@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState, type KeyboardEvent } from "react";
 import { saveSetsAction } from "@/app/actions";
-import type { SetResult } from "@/lib/results";
-import { MAX_SETS } from "@/lib/types";
+import type { ExerciseNote, SetResult } from "@/lib/results";
+import { MAX_NOTE_LENGTH, MAX_SETS } from "@/lib/types";
+import { prettyLabel } from "./format";
 
 type Row = { load: string; reps: string };
 type Status = { kind: "idle" } | { kind: "saving" } | { kind: "saved" } | { kind: "error"; message: string };
@@ -17,6 +18,10 @@ type Props = {
   /** Prescribed series; the athlete can add more up to MAX_SETS. */
   setCount: number;
   saved: SetResult[];
+  /** The athlete's own note on this exercise for this day (NOTAS ALUMNO). */
+  note: string;
+  /** Their latest note on it from another day, as a reminder. */
+  previousNote?: ExerciseNote;
 };
 
 const toText = (value: number | undefined) => (value === undefined ? "" : String(value));
@@ -60,7 +65,19 @@ function SavedSummary({ rows }: { rows: Row[] }) {
 }
 
 /** Carga + Reps per series (like MI_PLANIFICACION columns I–T), opened on demand and saved to the sheet. */
-export function SetLogger({ week, day, name, order, setCount, saved }: Props) {
+/** "Semana 1 · Día 2: subir despacio", what the athlete wrote last time. */
+function PreviousNote({ previous }: { previous: ExerciseNote }) {
+  return (
+    <p className="text-sm text-muted">
+      <span className="font-semibold text-silver">
+        La última vez ({prettyLabel(previous.week)} · {prettyLabel(previous.day)}):
+      </span>{" "}
+      <span className="whitespace-pre-line">{previous.note}</span>
+    </p>
+  );
+}
+
+export function SetLogger({ week, day, name, order, setCount, saved, note, previousNote }: Props) {
   const router = useRouter();
   const lastSet = Math.max(0, ...saved.map((s) => s.set));
   const initial = Array.from({ length: Math.min(Math.max(setCount, lastSet), MAX_SETS) }, (_, i) => {
@@ -71,19 +88,25 @@ export function SetLogger({ week, day, name, order, setCount, saved }: Props) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<Row[]>(initial);
   const [lastSaved, setLastSaved] = useState<Row[]>(initial);
+  const [noteText, setNoteText] = useState(note);
+  const [lastSavedNote, setLastSavedNote] = useState(note);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
   // Values changed in the sheet (seen on pull to refresh) replace these, unless the athlete is editing.
-  const savedKey = JSON.stringify(initial);
+  const savedKey = JSON.stringify([initial, note]);
   const [shownKey, setShownKey] = useState(savedKey);
   if (savedKey !== shownKey && !open) {
     setShownKey(savedKey);
     setRows(initial);
     setLastSaved(initial);
+    setNoteText(note);
+    setLastSavedNote(note);
   }
 
   // An added but empty series is not a change.
-  const dirty = rows.some((row, i) => row.load !== (lastSaved[i]?.load ?? "") || row.reps !== (lastSaved[i]?.reps ?? ""));
+  const dirty =
+    noteText.trim() !== lastSavedNote ||
+    rows.some((row, i) => row.load !== (lastSaved[i]?.load ?? "") || row.reps !== (lastSaved[i]?.reps ?? ""));
 
   function update(index: number, field: keyof Row, value: string) {
     setRows((current) => {
@@ -116,6 +139,7 @@ export function SetLogger({ week, day, name, order, setCount, saved }: Props) {
 
   function cancel() {
     setRows(lastSaved);
+    setNoteText(lastSavedNote);
     setStatus({ kind: "idle" });
     setOpen(false);
   }
@@ -133,10 +157,13 @@ export function SetLogger({ week, day, name, order, setCount, saved }: Props) {
 
     setStatus({ kind: "saving" });
     const snapshot = rows;
+    const savedNote = noteText.trim();
     try {
-      const result = await saveSetsAction({ week, day, name, order, sets });
+      const result = await saveSetsAction({ week, day, name, order, sets, note: savedNote });
       if (!result.ok) return setStatus({ kind: "error", message: result.error });
       setLastSaved(snapshot);
+      setNoteText(savedNote);
+      setLastSavedNote(savedNote);
       setStatus({ kind: "saved" });
       setOpen(false);
       // Refresh the block's series counter from the sheet.
@@ -148,18 +175,32 @@ export function SetLogger({ week, day, name, order, setCount, saved }: Props) {
 
   if (!open) {
     return (
-      <div className="mt-3 flex items-center gap-3">
-        <div className="flex min-w-0 flex-1 items-center">
-          <SavedSummary rows={lastSaved} />
-          {status.kind === "saved" && <span className="sr-only">Guardado</span>}
+      <div className="mt-3">
+        <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center">
+            <SavedSummary rows={lastSaved} />
+            {status.kind === "saved" && <span className="sr-only">Guardado</span>}
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="h-10 shrink-0 rounded-lg border border-accent px-4 font-display text-base font-bold tracking-wider text-accent uppercase active:bg-accent active:text-background"
+          >
+            {lastSaved.some(isFilled) || lastSavedNote ? "Editar" : "Cargar"}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="h-10 shrink-0 rounded-lg border border-accent px-4 font-display text-base font-bold tracking-wider text-accent uppercase active:bg-accent active:text-background"
-        >
-          {lastSaved.some(isFilled) ? "Editar" : "Cargar"}
-        </button>
+        {lastSavedNote ? (
+          <p className="mt-3 rounded-lg border-l-2 border-silver/50 bg-background/50 px-3 py-2 text-sm">
+            <span className="block text-[0.65rem] font-semibold tracking-widest text-muted uppercase">Mi nota</span>
+            <span className="whitespace-pre-line">{lastSavedNote}</span>
+          </p>
+        ) : (
+          previousNote && (
+            <div className="mt-3">
+              <PreviousNote previous={previousNote} />
+            </div>
+          )
+        )}
       </div>
     );
   }
@@ -212,6 +253,34 @@ export function SetLogger({ week, day, name, order, setCount, saved }: Props) {
         >
           + Serie <span className="font-sans text-xs font-normal normal-case">(máx. {MAX_SETS})</span>
         </button>
+      )}
+
+      <label className="mt-3 block">
+        <span className="flex items-baseline justify-between">
+          <span className="font-display text-sm font-bold tracking-widest text-muted uppercase">Mi nota</span>
+          {noteText.length > MAX_NOTE_LENGTH - 100 && (
+            <span className="text-xs text-muted tabular-nums">
+              {noteText.length}/{MAX_NOTE_LENGTH}
+            </span>
+          )}
+        </span>
+        <textarea
+          aria-label={`${name} mi nota`}
+          rows={2}
+          maxLength={MAX_NOTE_LENGTH}
+          placeholder="Lo que quieras recordar: técnica, agarre, cómo te sentiste…"
+          value={noteText}
+          onChange={(e) => {
+            setNoteText(e.target.value);
+            if (status.kind === "error") setStatus({ kind: "idle" });
+          }}
+          className="mt-1 block w-full resize-none rounded-lg border border-line bg-background px-3 py-2 text-base outline-none placeholder:text-muted/70 focus:border-accent [field-sizing:content]"
+        />
+      </label>
+      {!noteText && previousNote && (
+        <div className="mt-2">
+          <PreviousNote previous={previousNote} />
+        </div>
       )}
 
       {status.kind === "error" && (

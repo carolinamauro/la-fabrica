@@ -5,7 +5,9 @@ import {
   findSheetRow,
   formatRecordedAt,
   mergeSheetLoads,
+  mergeSheetNotes,
   parseE1rmExercises,
+  parseNotes,
   parseResults,
   parseSheetLoads,
   setCount,
@@ -17,8 +19,8 @@ const HEADER = [
   "FECHA", "ID_ATLETA", "SEMANA", "DIA", "EJERCICIO", "SERIE", "REPS_PRESCRIPTAS", "CARGA",
   "REPS_REALES", "RESULTADO", "UNIDAD", "NOTA", "OBJETIVO", "PESO_CORPORAL", "E1RM", "RATIO_BW",
 ];
-const row = (id: string, week: string, day: string, name: string, set: string, load: string, reps: string) =>
-  ["2026-09-01 10:00:00", id, week, day, name, set, "8", load, reps];
+const row = (id: string, week: string, day: string, name: string, set: string, load: string, reps: string, note = "") =>
+  ["2026-09-01 10:00:00", id, week, day, name, set, "8", load, reps, "", "", note];
 
 const selection = { week: "SEMANA 1", day: "DIA 2" };
 
@@ -56,6 +58,8 @@ describe("buildResultRows", () => {
     selection,
     exercise: { name: "HIP THRUST", order: "A", sets: "3", reps: "8", target: "RPE8" },
     previous: [{ set: 1, load: 100, reps: 8 }],
+    note: "",
+    previousNote: "",
     recordedAt: "2026-10-26 08:30:00",
   };
 
@@ -90,6 +94,44 @@ describe("buildResultRows", () => {
     });
     expect(written[6]).toBe("10+10");
     expect(written[14]).toBe("");
+  });
+
+  it("puts the note on every row, as text so it never becomes a formula", () => {
+    const rows = buildResultRows({
+      ...base,
+      withE1rm: false,
+      previous: [],
+      note: "=agarre cerrado",
+      sets: [{ set: 1, load: 100, reps: 8 }, { set: 2, load: 100, reps: 8 }],
+    });
+    expect(rows.map((r) => r[11])).toEqual(["'=agarre cerrado", "'=agarre cerrado"]);
+  });
+
+  it("writes a changed note alone as a row without series or results", () => {
+    const rows = buildResultRows({ ...base, withE1rm: false, sets: [{ set: 1, load: 100, reps: 8 }], note: "usar cinturón" });
+    expect(rows).toEqual([["2026-10-26 08:30:00", "ATL_A", "SEMANA 1", "DIA 2", "HIP THRUST", "", "", "", "", "", "", "'usar cinturón", "", "", "", ""]]);
+    // Nothing changed: nothing to write.
+    expect(buildResultRows({ ...base, withE1rm: false, sets: [], note: "x", previousNote: "x" })).toEqual([]);
+    // A cleared note is a change too.
+    expect(buildResultRows({ ...base, withE1rm: false, sets: [], previousNote: "x" })).toHaveLength(1);
+  });
+});
+
+describe("parseNotes", () => {
+  it("takes the day's note from its last row, and the latest note of another day", () => {
+    const rows = [
+      HEADER,
+      row("ATL_A", "SEMANA 1", "DIA 1", "HIP THRUST", "1", "100", "8", "subir despacio"),
+      row("ATL_A", "SEMANA 1", "DIA 2", "HIP THRUST", "1", "100", "8", "primera"),
+      row("ATL_A", "SEMANA 1", "DIA 2", "HIP THRUST", "", "", "", "pies más abiertos"),
+      row("ATL_A", "SEMANA 1", "DIA 2", "PULL UP", "1", "", "12", "con banda"),
+      row("ATL_A", "SEMANA 1", "DIA 2", "PULL UP", "", "", "", ""), // cleared
+      row("ATL_B", "SEMANA 1", "DIA 2", "HIP THRUST", "1", "50", "8", "de otro atleta"),
+    ];
+    expect(parseNotes(rows, "ATL_A", selection)).toEqual({
+      "HIP THRUST": { note: "pies más abiertos", previous: { week: "SEMANA 1", day: "DIA 1", note: "subir despacio" } },
+      "PULL UP": { note: "" },
+    });
   });
 });
 
@@ -133,9 +175,9 @@ describe("MI_PLANIFICACION loads", () => {
     expect(sheet.selection).toEqual(selection);
     expect(sheet.loadColumns).toEqual([8, 10]);
     expect(sheet.rows).toEqual([
-      { row: 6, order: "A1", name: "HIP THRUST", sets: [{ set: 1, load: 97.5, reps: 8 }, { set: 2, load: 100, reps: 8 }] },
-      { row: 7, order: "A1", name: "PULL UP", sets: [] },
-      { row: 8, order: "B1", name: "PULL UP", sets: [{ set: 1, load: undefined, reps: 10 }] },
+      { row: 6, order: "A1", name: "HIP THRUST", sets: [{ set: 1, load: 97.5, reps: 8 }, { set: 2, load: 100, reps: 8 }], note: "" },
+      { row: 7, order: "A1", name: "PULL UP", sets: [], note: "" },
+      { row: 8, order: "B1", name: "PULL UP", sets: [{ set: 1, load: undefined, reps: 10 }], note: "" },
     ]);
   });
 
@@ -167,6 +209,24 @@ describe("MI_PLANIFICACION loads", () => {
       { range: "MI_PLANIFICACION!I6:J6", values: [[100, 8]] },
       { range: "MI_PLANIFICACION!K6:L6", values: [["", 6]] },
     ]);
+  });
+
+  it("reads and writes NOTAS ALUMNO, whose header is on the SERIE row", () => {
+    const withNotes = parseSheetLoads([
+      ["SEMANA :", "SEMANA 1", "DIA :", "DIA 2"],
+      ["", "", "", "", "", "", "", "", "SERIE 1", "", "NOTAS ALUMNO"],
+      ["ORDEN", "EJERCICIO", "SERIES", "REPETICIONES", "OBJETIVO", "DESCANSO", "LINKS", "NOTAS", "CARGA", "REPS"],
+      ["A1", "HIP THRUST", "3", "8", "", "", "", "", "100", "8", "pies abiertos"],
+    ])!;
+    expect(withNotes.noteColumn).toBe(10);
+    expect(withNotes.rows[0].note).toBe("pies abiertos");
+    expect(mergeSheetNotes({ "HIP THRUST": { note: "vieja" } }, withNotes)["HIP THRUST"].note).toBe("pies abiertos");
+    // An empty cell (left from another day) doesn't erase the saved note.
+    expect(mergeSheetNotes({ "HIP THRUST": { note: "vieja" } }, { ...withNotes, rows: [{ ...withNotes.rows[0], note: "" }] })).toEqual({
+      "HIP THRUST": { note: "vieja" },
+    });
+    expect(sheetLoadCells(withNotes, 6, [], "nueva")).toEqual([{ range: "MI_PLANIFICACION!K6", values: [["'nueva"]] }]);
+    expect(sheet.noteColumn).toBe(-1);
   });
 
   it("returns null when the tab has no header", () => {

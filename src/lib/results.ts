@@ -1,7 +1,7 @@
 import type { Athlete } from "./athletes";
 import { buildWorkout, MI_FIRST_ROW, MI_RANGE, parsePlanRows, PLAN_RANGE } from "./personalized";
 import { appendRows, readRange, writeCells } from "./sheets";
-import { MAX_SETS, type DaySelection, type Exercise } from "./types";
+import { MAX_NOTE_LENGTH, MAX_SETS, type DaySelection, type Exercise } from "./types";
 
 export { MAX_SETS };
 
@@ -14,6 +14,13 @@ const TIME_ZONE = "America/Argentina/Buenos_Aires";
 export type SetResult = { set: number; load?: number; reps?: number };
 /** Latest saved sets per exercise name (uppercase). */
 export type SavedResults = Record<string, SetResult[]>;
+/** A note the athlete left on an exercise ("NOTAS ALUMNO"), and the day it was for. */
+export type ExerciseNote = DaySelection & { note: string };
+/** Per exercise name (uppercase): the note for the day shown, and the latest one of another day. */
+export type SavedNotes = Record<string, { note: string; previous?: ExerciseNote }>;
+/** What the athlete saved for one day. */
+export type SavedDay = { sets: SavedResults; notes: SavedNotes };
+
 
 const label = (value: string | undefined) => (value ?? "").trim().toUpperCase().replace(/\s+/g, " ");
 
@@ -75,6 +82,29 @@ export function parseResults(rows: string[][], athleteId: string, { week, day }:
   );
 }
 
+/**
+ * Notes per exercise from REGISTRO_PLANIFICACION's NOTA: every row the app writes carries the
+ * exercise's current note, so the day's note is the one on its last row (empty clears it); the
+ * previous one is the latest non-empty note of another day.
+ */
+export function parseNotes(rows: string[][], athleteId: string, { week, day }: DaySelection): SavedNotes {
+  const [header = [], ...data] = rows;
+  const col = headerIndex(header);
+  const idx = { id: col("ID_ATLETA"), week: col("SEMANA"), day: col("DIA"), name: col("EJERCICIO"), note: col("NOTA") };
+  if (Object.values(idx).some((i) => i < 0)) return {};
+
+  const notes: SavedNotes = {};
+  for (const row of data) {
+    if (row[idx.id]?.trim() !== athleteId) continue;
+    const name = label(row[idx.name]);
+    const note = row[idx.note]?.trim() ?? "";
+    const entry = (notes[name] ??= { note: "" });
+    if (label(row[idx.week]) === week && label(row[idx.day]) === day) entry.note = note;
+    else if (note) entry.previous = { week: label(row[idx.week]), day: label(row[idx.day]), note };
+  }
+  return notes;
+}
+
 /** Exercise names (uppercase) the catalog marks with E1RM = SI. */
 export function parseE1rmExercises(rows: string[][]): Set<string> {
   const [header = [], ...data] = rows;
@@ -92,13 +122,32 @@ type ResultRowsInput = {
   exercise: Exercise;
   sets: SetResult[];
   previous: SetResult[];
+  /** The exercise's note now, and as last saved for this day. */
+  note: string;
+  previousNote: string;
   withE1rm: boolean;
   recordedAt: string;
 };
 
-/** New REGISTRO_PLANIFICACION rows (in the tab's column order) for the sets that changed. */
-export function buildResultRows({ header, athlete, selection, exercise, sets, previous, withE1rm, recordedAt }: ResultRowsInput) {
-  return sets
+// Written as text: a note starting with "=" or "+" must not become a formula.
+const asText = (value: string) => (value ? `'${value}` : "");
+
+/**
+ * New REGISTRO_PLANIFICACION rows (in the tab's column order) for the sets that changed, each
+ * with the exercise's note. A changed note alone is a row without SERIE or results.
+ */
+export function buildResultRows({ header, athlete, selection, exercise, sets, previous, note, previousNote, withE1rm, recordedAt }: ResultRowsInput) {
+  const base = {
+    FECHA: recordedAt,
+    ID_ATLETA: athlete.id,
+    SEMANA: selection.week,
+    DIA: selection.day,
+    EJERCICIO: exercise.name,
+    NOTA: asText(note),
+  };
+  const toRow = (values: Record<string, string | number | undefined>) => header.map((h) => values[label(h)] ?? "");
+
+  const rows = sets
     .filter(({ load, reps }) => load !== undefined || reps !== undefined)
     .filter((entry) => {
       const saved = previous.find((p) => p.set === entry.set);
@@ -106,12 +155,8 @@ export function buildResultRows({ header, athlete, selection, exercise, sets, pr
     })
     .map(({ set, load, reps }) => {
       const e1rm = withE1rm && load && reps ? epley(load, reps) : undefined;
-      const values: Record<string, string | number | undefined> = {
-        FECHA: recordedAt,
-        ID_ATLETA: athlete.id,
-        SEMANA: selection.week,
-        DIA: selection.day,
-        EJERCICIO: exercise.name,
+      return toRow({
+        ...base,
         SERIE: set,
         REPS_PRESCRIPTAS: toNumber(exercise.reps) ?? exercise.reps,
         CARGA: load,
@@ -122,9 +167,9 @@ export function buildResultRows({ header, athlete, selection, exercise, sets, pr
         PESO_CORPORAL: athlete.bodyWeightKg,
         E1RM: e1rm,
         RATIO_BW: e1rm && athlete.bodyWeightKg ? round(e1rm / athlete.bodyWeightKg, 2) : undefined,
-      };
-      return header.map((h) => values[label(h)] ?? "");
+      });
     });
+  return rows.length || note === previousNote ? rows : [toRow(base)];
 }
 
 /** Date and time in Argentina, in a format Sheets reads as a date ("2026-10-26 08:30:00"). */
@@ -132,9 +177,12 @@ export function formatRecordedAt(date: Date): string {
   return date.toLocaleString("sv-SE", { timeZone: TIME_ZONE }).replace("T", " ");
 }
 
-type SheetRow = { row: number; order: string; name: string; sets: SetResult[] };
-/** MI_PLANIFICACION: the week/day open in the sheet and the Carga/Reps typed on each exercise row. */
-export type SheetLoads = { selection: DaySelection; loadColumns: number[]; rows: SheetRow[] };
+type SheetRow = { row: number; order: string; name: string; sets: SetResult[]; note: string };
+/**
+ * MI_PLANIFICACION: the week/day open in the sheet and the Carga/Reps and NOTAS ALUMNO typed on
+ * each exercise row (`noteColumn` is -1 when the tab has no NOTAS ALUMNO).
+ */
+export type SheetLoads = { selection: DaySelection; loadColumns: number[]; noteColumn: number; rows: SheetRow[] };
 
 /** Parses MI_RANGE. Null when the tab doesn't have its usual header. */
 export function parseSheetLoads(rows: string[][]): SheetLoads | null {
@@ -148,6 +196,10 @@ export function parseSheetLoads(rows: string[][]): SheetLoads | null {
   const loadColumns = rows[headerAt]
     .flatMap((h, i) => (label(h) === "CARGA" && label(rows[headerAt][i + 1]) === "REPS" ? [i] : []))
     .slice(0, MAX_SETS);
+  // Its header can be on the SERIE row above the CARGA/REPS one.
+  const noteColumn = [headerAt, headerAt - 1]
+    .map((at) => (rows[at] ?? []).findIndex((h) => label(h) === "NOTAS ALUMNO"))
+    .find((i) => i >= 0) ?? -1;
 
   // Like buildWorkout: a row without ORDEN belongs to the block of the row above.
   let previousOrder = "";
@@ -158,10 +210,11 @@ export function parseSheetLoads(rows: string[][]): SheetLoads | null {
     const sets = loadColumns
       .map((c, set) => ({ set: set + 1, load: toNumber(row[c]), reps: toNumber(row[c + 1]) }))
       .filter(({ load, reps }) => load !== undefined || reps !== undefined);
-    return [{ row: MI_FIRST_ROW + headerAt + 1 + i, order, name: label(row[nameIdx]), sets }];
+    const note = noteColumn >= 0 ? (row[noteColumn]?.trim() ?? "") : "";
+    return [{ row: MI_FIRST_ROW + headerAt + 1 + i, order, name: label(row[nameIdx]), sets, note }];
   });
 
-  return { selection: { week: label(selector[1]), day: label(selector[3]) }, loadColumns, rows: data };
+  return { selection: { week: label(selector[1]), day: label(selector[3]) }, loadColumns, noteColumn, rows: data };
 }
 
 const isOpenDay = (sheet: SheetLoads | null, { week, day }: DaySelection): sheet is SheetLoads =>
@@ -186,13 +239,30 @@ export function mergeSheetLoads(saved: SavedResults, sheet: SheetLoads): SavedRe
   return merged;
 }
 
+/**
+ * The open day's NOTAS ALUMNO (typed in the sheet or by the app) wins over REGISTRO's, but an
+ * empty cell doesn't erase a saved note: those cells stay put when the sheet switches day.
+ */
+export function mergeSheetNotes(notes: SavedNotes, sheet: SheetLoads): SavedNotes {
+  const merged = { ...notes };
+  for (const { name, note } of sheet.rows) if (note) merged[name] = { ...merged[name], note };
+  return merged;
+}
+
 const columnLetter = (index: number): string =>
   (index >= 26 ? columnLetter(Math.floor(index / 26) - 1) : "") + String.fromCharCode(65 + (index % 26));
 
-/** Cell writes that put the app's Carga/Reps on one MI_PLANIFICACION row (empty values clear the cell). */
-export function sheetLoadCells(sheet: SheetLoads, row: number, sets: SetResult[]) {
+/**
+ * Cell writes that put the app's Carga/Reps (and the note, when given) on one MI_PLANIFICACION
+ * row (empty values clear the cell).
+ */
+export function sheetLoadCells(sheet: SheetLoads, row: number, sets: SetResult[], note?: string) {
   const tab = MI_RANGE.split("!")[0];
-  return sets
+  const noteCell =
+    note !== undefined && sheet.noteColumn >= 0
+      ? [{ range: `${tab}!${columnLetter(sheet.noteColumn)}${row}`, values: [[asText(note)]] }]
+      : [];
+  const loadCells = sets
     .filter(({ set }) => set <= sheet.loadColumns.length)
     .map(({ set, load, reps }) => {
       const c = sheet.loadColumns[set - 1];
@@ -201,23 +271,27 @@ export function sheetLoadCells(sheet: SheetLoads, row: number, sets: SetResult[]
         values: [[load ?? "", reps ?? ""]],
       };
     });
+  return [...loadCells, ...noteCell];
 }
 
-export async function getSavedResults(athlete: Athlete, selection: DaySelection): Promise<SavedResults> {
-  if (!athlete.spreadsheetId) return {};
+export async function getSavedResults(athlete: Athlete, selection: DaySelection): Promise<SavedDay> {
+  if (!athlete.spreadsheetId) return { sets: {}, notes: {} };
   // Fresh: the athlete may have just typed or cleared loads in the sheet.
   const [registro, sheetRows] = await Promise.all([
     readRange(athlete.spreadsheetId, REGISTRO_RANGE, { fresh: true }),
     readRange(athlete.spreadsheetId, MI_RANGE, { fresh: true }),
   ]);
-  const saved = parseResults(registro, athlete.id, selection);
+  const sets = parseResults(registro, athlete.id, selection);
+  const notes = parseNotes(registro, athlete.id, selection);
   const sheet = parseSheetLoads(sheetRows);
-  return isOpenDay(sheet, selection) ? mergeSheetLoads(saved, sheet) : saved;
+  return isOpenDay(sheet, selection)
+    ? { sets: mergeSheetLoads(sets, sheet), notes: mergeSheetNotes(notes, sheet) }
+    : { sets, notes };
 }
 
 export class ResultError extends Error {}
 
-export type SaveInput = DaySelection & { name: string; order?: string; sets: SetResult[] };
+export type SaveInput = DaySelection & { name: string; order?: string; sets: SetResult[]; note?: string };
 
 // The athlete can log more series than prescribed, up to the 6 Carga/Reps pairs of the sheet.
 function validSet({ set, load, reps }: SetResult) {
@@ -242,6 +316,10 @@ export async function saveResults(athlete: Athlete, input: SaveInput): Promise<n
   if (!exercise) throw new ResultError("Este ejercicio ya no está en tu planificación. Actualizá la página.");
 
   if (!input.sets.every(validSet)) throw new ResultError("Revisá los valores cargados.");
+  const note = input.note?.trim().replace(/\r\n/g, "\n");
+  if (note !== undefined && note.length > MAX_NOTE_LENGTH) {
+    throw new ResultError(`La nota puede tener hasta ${MAX_NOTE_LENGTH} caracteres.`);
+  }
 
   const [registro, catalog, sheetRows] = await Promise.all([
     readRange(id, REGISTRO_RANGE),
@@ -249,6 +327,10 @@ export async function saveResults(athlete: Athlete, input: SaveInput): Promise<n
     // Fresh: the athlete may have switched week/day in the sheet a moment ago.
     readRange(id, MI_RANGE, { fresh: true }),
   ]);
+  const sheet = parseSheetLoads(sheetRows);
+  const target = isOpenDay(sheet, selection) ? findSheetRow(sheet, exercise) : undefined;
+  // The note shown in the app (see mergeSheetNotes), to tell whether it changed.
+  const previousNote = target?.note || (parseNotes(registro, athlete.id, selection)[label(exercise.name)]?.note ?? "");
   const rows = buildResultRows({
     header: registro[0] ?? [],
     athlete,
@@ -256,14 +338,15 @@ export async function saveResults(athlete: Athlete, input: SaveInput): Promise<n
     exercise,
     sets: input.sets,
     previous: parseResults(registro, athlete.id, selection)[label(exercise.name)] ?? [],
+    // Without a note in the request, rows keep the one already saved.
+    note: note ?? previousNote,
+    previousNote,
     withE1rm: parseE1rmExercises(catalog).has(label(exercise.name)),
     recordedAt: formatRecordedAt(new Date()),
   });
   if (rows.length) await appendRows(id, REGISTRO_RANGE, rows);
 
-  // Mirror the loads in MI_PLANIFICACION when this day is the one open in the sheet.
-  const sheet = parseSheetLoads(sheetRows);
-  const target = isOpenDay(sheet, selection) ? findSheetRow(sheet, exercise) : undefined;
-  if (sheet && target) await writeCells(id, sheetLoadCells(sheet, target.row, input.sets), MI_RANGE);
+  // Mirror the loads and note in MI_PLANIFICACION when this day is the one open in the sheet.
+  if (sheet && target) await writeCells(id, sheetLoadCells(sheet, target.row, input.sets, note), MI_RANGE);
   return rows.length;
 }

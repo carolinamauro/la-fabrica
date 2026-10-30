@@ -193,6 +193,8 @@ export function parseHistoryRecords(rows: string[][], athleteId: string): Histor
     const when = parseTimestamp(row[idx.date]);
     const exercise = label(row[idx.name]);
     if (row[idx.id]?.trim() !== id || !when || !exercise) return [];
+    // A row with only the athlete's note (no series or result) isn't a set.
+    if (![idx.set, idx.load, idx.reps, idx.result].some((i) => i >= 0 && row[i]?.trim())) return [];
     return [
       {
         exercise,

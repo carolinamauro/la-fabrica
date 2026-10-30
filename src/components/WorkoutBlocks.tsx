@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { timerFromExercise, timerFromText } from "@/lib/timer";
 import type { Block, Exercise } from "@/lib/types";
+import { ExerciseVideoButton } from "./ExerciseVideoButton";
 import { ChevronIcon, TimerIcon } from "./icons";
 import { TimerButton } from "./TimerProvider";
 
@@ -56,7 +57,7 @@ function preview(block: Block) {
 }
 
 function ExerciseItem({ exercise, block, extra }: { exercise: Exercise; block: string; extra?: RenderExtra }) {
-  const { name, order, sets, reps, target, rest, interval, notes } = exercise;
+  const { name, order, sets, reps, target, rest, interval, notes, video } = exercise;
   const volume = sets && reps ? `${sets}×${reps}` : sets ? `${sets} series` : reps;
   const tags = [target, interval].filter(Boolean);
   // "C. EMOM X 15 MIN" can be the name itself, or the INTERVALO column of a personalized plan;
@@ -67,7 +68,7 @@ function ExerciseItem({ exercise, block, extra }: { exercise: Exercise; block: s
   const showOrder = order && order !== block;
 
   // A line with nothing next to it is plain programming text (CrossFit).
-  if (!volume && !tags.length && !rest && !notes && !order) {
+  if (!volume && !tags.length && !rest && !notes && !order && !video) {
     return (
       <li className={`py-2 ${SECTION.test(name) ? "pt-4 font-display text-lg font-bold tracking-wide text-accent first:pt-2" : ""}`}>
         <LinkedText text={name} />
@@ -94,6 +95,7 @@ function ExerciseItem({ exercise, block, extra }: { exercise: Exercise; block: s
             <TimerIcon className="size-4" />
             Timer
           </TimerButton>
+          {video && <ExerciseVideoButton name={name} video={video} />}
         </div>
       </div>
       {(tags.length > 0 || rest) && (

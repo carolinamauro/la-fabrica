@@ -1,14 +1,17 @@
 import type { Athlete } from "./athletes";
 import { readRange } from "./sheets";
 import type { Block, DaySelection, Exercise, WeekSummary, Workout } from "./types";
+import { parseVideo } from "./video";
 
-export const PLAN_RANGE = "BASE_PLANIFICACION!A:K";
-// From the week (B3) and day (D3) selected in the athlete's sheet down to the last Carga/Reps column.
-export const MI_RANGE = "MI_PLANIFICACION!A3:T";
+// Columns are found by their header, so the coach can add or move columns (up to Z).
+export const PLAN_RANGE = "BASE_PLANIFICACION!A:Z";
+// From the week (B3) and day (D3) selected in the athlete's sheet, past the last Carga/Reps column.
+export const MI_RANGE = "MI_PLANIFICACION!A3:Z";
 export const MI_FIRST_ROW = 3;
 
 type PlanRow = { week: string; day: string; exercise: Exercise };
 
+const HAS_LINK = /https?:\/\//;
 const clean = (value: string | undefined) => value?.trim() || undefined;
 const label = (value: string | undefined) => (value ?? "").trim().toUpperCase().replace(/\s+/g, " ");
 const numberIn = (value: string) => Number(value.match(/\d+/)?.[0] ?? Number.MAX_SAFE_INTEGER);
@@ -41,6 +44,7 @@ export function parsePlanRows(rows: string[][], athleteId: string): PlanRow[] {
     week: col("SEMANA"),
     day: col("DIA"),
     order: col("ORDEN"),
+    video: ["LINKS", "LINK", "VIDEO"].map(col).find((i) => i >= 0) ?? -1,
   };
   if (idx.name < 0 || idx.id < 0 || idx.week < 0 || idx.day < 0) {
     throw new Error("BASE_PLANIFICACION is missing one of the columns EJERCICIO, ID, SEMANA, DIA");
@@ -48,20 +52,26 @@ export function parsePlanRows(rows: string[][], athleteId: string): PlanRow[] {
 
   return data
     .filter((row) => row[idx.id]?.trim() === athleteId && clean(row[idx.name]))
-    .map((row) => ({
-      week: label(row[idx.week]),
-      day: label(row[idx.day]),
-      exercise: {
-        name: row[idx.name].trim(),
-        order: clean(row[idx.order])?.toUpperCase(),
-        sets: clean(row[idx.sets]),
-        reps: clean(row[idx.reps]),
-        target: clean(row[idx.target]),
-        rest: formatDuration(row[idx.rest]),
-        interval: clean(row[idx.interval]),
-        notes: clean(row[idx.notes]),
-      },
-    }));
+    .map((row) => {
+      // Coaches may paste the video in INTERVALO (MI_PLANIFICACION shows that column as LINKS):
+      // a link there is the video, not an interval tag.
+      const intervalIsLink = HAS_LINK.test(row[idx.interval] ?? "");
+      return {
+        week: label(row[idx.week]),
+        day: label(row[idx.day]),
+        exercise: {
+          name: row[idx.name].trim(),
+          order: clean(row[idx.order])?.toUpperCase(),
+          sets: clean(row[idx.sets]),
+          reps: clean(row[idx.reps]),
+          target: clean(row[idx.target]),
+          rest: formatDuration(row[idx.rest]),
+          interval: intervalIsLink ? undefined : clean(row[idx.interval]),
+          notes: clean(row[idx.notes]),
+          video: parseVideo(row[idx.video]) ?? (intervalIsLink ? parseVideo(row[idx.interval]) : undefined),
+        },
+      };
+    });
 }
 
 export function listWeeks(rows: PlanRow[]): WeekSummary[] {

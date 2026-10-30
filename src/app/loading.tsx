@@ -5,7 +5,10 @@ export default function Loading() {
       aria-busy="true"
       aria-label="Cargando"
     >
-      <div className="h-6 w-24 animate-pulse rounded bg-accent/30" />
+      <p role="status" className="flex items-center gap-2 font-display text-lg font-bold tracking-wider text-muted uppercase">
+        <span className="size-4 animate-spin rounded-full border-2 border-line border-t-accent" aria-hidden />
+        Cargando tu planificación…
+      </p>
       <div className="flex gap-2">
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="h-10 w-24 animate-pulse rounded-lg bg-card" />

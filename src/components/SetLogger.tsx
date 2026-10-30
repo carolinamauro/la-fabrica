@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import { saveSetsAction } from "@/app/actions";
 import type { SetResult } from "@/lib/results";
 import { MAX_SETS } from "@/lib/types";
@@ -73,12 +73,45 @@ export function SetLogger({ week, day, name, order, setCount, saved }: Props) {
   const [lastSaved, setLastSaved] = useState<Row[]>(initial);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
+  // Values changed in the sheet (seen on "Actualizar") replace these, unless the athlete is editing.
+  const savedKey = JSON.stringify(initial);
+  const [shownKey, setShownKey] = useState(savedKey);
+  if (savedKey !== shownKey && !open) {
+    setShownKey(savedKey);
+    setRows(initial);
+    setLastSaved(initial);
+  }
+
   // An added but empty series is not a change.
   const dirty = rows.some((row, i) => row.load !== (lastSaved[i]?.load ?? "") || row.reps !== (lastSaved[i]?.reps ?? ""));
 
   function update(index: number, field: keyof Row, value: string) {
-    setRows((current) => current.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+    setRows((current) => {
+      // The first series' load fills the others (most series repeat it), but only the ones still
+      // empty or holding the copied value, never a load typed on purpose.
+      const copied = index === 0 && field === "load" ? current[0].load : null;
+      return current.map((row, i) => {
+        if (i === index) return { ...row, [field]: value };
+        if (copied !== null && (row.load === "" || row.load === copied)) return { ...row, load: value };
+        return row;
+      });
+    });
     if (status.kind === "error") setStatus({ kind: "idle" });
+  }
+
+  const list = useRef<HTMLUListElement>(null);
+
+  /** Enter goes to the next series' load; on the last series it closes the keyboard. */
+  function nextLoad(event: KeyboardEvent<HTMLInputElement>, index: number) {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    const next = list.current?.querySelectorAll<HTMLInputElement>("input[data-load]")[index + 1];
+    if (next) {
+      next.focus();
+      next.select();
+    } else {
+      event.currentTarget.blur();
+    }
   }
 
   function cancel() {
@@ -136,7 +169,7 @@ export function SetLogger({ week, day, name, order, setCount, saved }: Props) {
 
   return (
     <div className="mt-3 rounded-xl border border-line bg-card-raised p-3">
-      <ul className="flex flex-col gap-2">
+      <ul ref={list} className="flex flex-col gap-2">
         {rows.map((row, i) => (
           <li key={i} className="flex items-center gap-2">
             <span className="grid size-9 shrink-0 place-items-center rounded-full bg-background font-display text-lg font-bold text-accent">
@@ -145,11 +178,13 @@ export function SetLogger({ week, day, name, order, setCount, saved }: Props) {
             <label className="relative flex-1">
               <input
                 aria-label={`${name} serie ${i + 1} carga`}
+                data-load
                 inputMode="decimal"
-                enterKeyHint="next"
+                enterKeyHint={i < rows.length - 1 ? "next" : "done"}
                 className={input}
                 value={row.load}
                 onChange={(e) => update(i, "load", e.target.value)}
+                onKeyDown={(e) => nextLoad(e, i)}
               />
               <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-muted">kg</span>
             </label>
@@ -157,10 +192,11 @@ export function SetLogger({ week, day, name, order, setCount, saved }: Props) {
               <input
                 aria-label={`${name} serie ${i + 1} reps`}
                 inputMode="numeric"
-                enterKeyHint="next"
+                enterKeyHint={i < rows.length - 1 ? "next" : "done"}
                 className={input}
                 value={row.reps}
                 onChange={(e) => update(i, "reps", e.target.value)}
+                onKeyDown={(e) => nextLoad(e, i)}
               />
               <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-muted">reps</span>
             </label>

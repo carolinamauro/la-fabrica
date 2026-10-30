@@ -4,10 +4,11 @@
 :root {
   --background: #0a0c0c;
   --foreground: #eef2f2;
-  --card: #121616;
-  --card-raised: #191e1e;
+  /* Cards a clear step above the background, so the workout blocks stand out. */
+  --card: #1c2223;
+  --card-raised: #262d2e;
   --muted: #8a9496;
-  --line: #242b2c;
+  --line: #313a3b;
   --accent: #14d2bd;
   --accent-soft: rgb(20 210 189 / 0.13);
   --silver: #b9c0c2;

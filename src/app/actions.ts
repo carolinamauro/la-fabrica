@@ -1,14 +1,23 @@
 "use server";
 
+import { refresh } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { findAthleteByEmail } from "@/lib/athletes";
 import { ResultError, saveResults, type SaveInput } from "@/lib/results";
 import { getSession, SESSION_COOKIE } from "@/lib/session";
+import { clearSheetCache } from "@/lib/sheets";
 
 export async function signOutAction() {
   (await cookies()).delete(SESSION_COOKIE);
   redirect("/login");
+}
+
+/** "Actualizar": reads the plan from the sheets again instead of the cached copy, and re-renders. */
+export async function reloadFromSheetsAction() {
+  if (!(await getSession())) redirect("/login");
+  clearSheetCache();
+  refresh();
 }
 
 export type SaveSetsResult = { ok: true } | { ok: false; error: string };

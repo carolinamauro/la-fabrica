@@ -19,6 +19,11 @@ function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
   return value;
 }
 
+/** Drops every cached read, so the next ones come straight from the sheets (the app's "Actualizar"). */
+export function clearSheetCache() {
+  cache.clear();
+}
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`Missing environment variable ${name}`);

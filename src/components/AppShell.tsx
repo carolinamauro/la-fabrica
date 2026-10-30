@@ -4,6 +4,8 @@ import { signOutAction } from "@/app/actions";
 import { LogoMark, Wordmark } from "./Brand";
 import { TimerIcon } from "./icons";
 import { InstallApp } from "./InstallApp";
+import { KeepFresh } from "./KeepFresh";
+import { RefreshButton } from "./RefreshButton";
 import { TimerButton } from "./TimerProvider";
 
 /**
@@ -23,6 +25,7 @@ export function AppShell({
 }) {
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col">
+      <KeepFresh />
       {/* The iOS status bar is translucent, so the header pads itself below the notch. */}
       <header className="sticky top-0 z-10 border-b border-line bg-background/90 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="flex h-14 items-center justify-between px-4">
@@ -32,6 +35,7 @@ export function AppShell({
             {name && <span className="truncate pl-1 text-sm text-muted">Hola, {name}</span>}
           </Link>
           <div className="flex shrink-0 items-center gap-1">
+            <RefreshButton />
             <TimerButton aria-label="Timer" className="grid size-10 place-items-center rounded-lg text-accent">
               <TimerIcon />
             </TimerButton>

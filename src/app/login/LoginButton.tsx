@@ -1,55 +1,91 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LogoMark } from "@/components/Brand";
-import { signInWithGoogle } from "@/lib/firebase-client";
+import { finishRedirectSignIn, isInstalledApp, signInWithGoogle } from "@/lib/firebase-client";
 
 /** `entering`: signed in, waiting for the plan (read from the sheet) to show up. */
 type Status = { kind: "idle" } | { kind: "loading" } | { kind: "entering" } | { kind: "error"; message: string };
 
 const CANCELLED = ["auth/popup-closed-by-user", "auth/cancelled-popup-request"];
+// Set while the installed app is away at Google, so it shows "Ingresando…" on the way back.
+const REDIRECTING = "signing-in-with-google";
 
 export function LoginButton() {
   const router = useRouter();
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
+  /** Exchanges Google's ID token for the app's session and opens the plan. */
+  async function enter(idToken: string) {
+    const response = await fetch("/api/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken }),
+    });
+    if (response.ok) {
+      // This page stays up until the plan is ready, so cover it with a loader meanwhile.
+      setStatus({ kind: "entering" });
+      router.replace("/");
+      router.refresh();
+      return;
+    }
+    const body = await response.json().catch(() => ({}));
+    setStatus({
+      kind: "error",
+      message:
+        body.error === "not_enabled"
+          ? `${body.email} no está habilitado. Probá con otra cuenta o pedile a tu coach que te agregue.`
+          : "No pudimos iniciar sesión. Probá de nuevo.",
+    });
+  }
+
+  function fail(error: unknown) {
+    const code = (error as { code?: string }).code ?? "";
+    if (CANCELLED.includes(code)) return setStatus({ kind: "idle" });
+    setStatus({
+      kind: "error",
+      message:
+        code === "auth/popup-blocked"
+          ? "El navegador bloqueó la ventana de Google. Permití ventanas emergentes y probá de nuevo."
+          : "No pudimos iniciar sesión. Probá de nuevo.",
+    });
+  }
+
   async function login() {
     setStatus({ kind: "loading" });
     try {
-      const idToken = await signInWithGoogle();
-      const response = await fetch("/api/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken }),
-      });
-      if (response.ok) {
-        // This page stays up until the plan is ready, so cover it with a loader meanwhile.
-        setStatus({ kind: "entering" });
-        router.replace("/");
-        router.refresh();
-        return;
-      }
-      const body = await response.json().catch(() => ({}));
-      setStatus({
-        kind: "error",
-        message:
-          body.error === "not_enabled"
-            ? `${body.email} no está habilitado. Probá con otra cuenta o pedile a tu coach que te agregue.`
-            : "No pudimos iniciar sesión. Probá de nuevo.",
-      });
+      // In the installed app this leaves for Google, and the effect below finishes on the way back.
+      if (isInstalledApp()) sessionStorage.setItem(REDIRECTING, "1");
+      await enter(await signInWithGoogle());
     } catch (error) {
-      const code = (error as { code?: string }).code ?? "";
-      if (CANCELLED.includes(code)) return setStatus({ kind: "idle" });
-      setStatus({
-        kind: "error",
-        message:
-          code === "auth/popup-blocked"
-            ? "El navegador bloqueó la ventana de Google. Permití ventanas emergentes y probá de nuevo."
-            : "No pudimos iniciar sesión. Probá de nuevo.",
-      });
+      fail(error);
     }
   }
+
+  // Back from Google in the installed app: finish signing in with the account chosen there.
+  useEffect(() => {
+    if (!isInstalledApp()) return;
+    let active = true;
+    const returning = sessionStorage.getItem(REDIRECTING);
+    sessionStorage.removeItem(REDIRECTING);
+    void (async () => {
+      if (returning) setStatus({ kind: "loading" });
+      try {
+        const idToken = await finishRedirectSignIn();
+        if (!active) return;
+        // Back without choosing an account: offer the button again.
+        if (!idToken) return returning && setStatus({ kind: "idle" });
+        await enter(idToken);
+      } catch (error) {
+        if (active) fail(error);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on arriving at the page
+  }, []);
 
   if (status.kind === "entering") {
     return (

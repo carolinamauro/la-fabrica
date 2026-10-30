@@ -9,6 +9,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Everything except the login page, the session API and static assets requires a session.
-  matcher: ["/((?!login|api/session|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|ico|webmanifest)$).*)"],
+  // Everything except the login page, the session API, Firebase's sign-in pages (/__/) and static
+  // assets requires a session.
+  matcher: ["/((?!login|api/session|__/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|ico|webmanifest)$).*)"],
 };

@@ -13,7 +13,7 @@ export async function signOutAction() {
   redirect("/login");
 }
 
-/** "Actualizar": reads the plan from the sheets again instead of the cached copy, and re-renders. */
+/** Pull to refresh: reads the plan from the sheets again instead of the cached copy, and re-renders. */
 export async function reloadFromSheetsAction() {
   if (!(await getSession())) redirect("/login");
   clearSheetCache();

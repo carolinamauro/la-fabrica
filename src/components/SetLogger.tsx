@@ -73,7 +73,7 @@ export function SetLogger({ week, day, name, order, setCount, saved }: Props) {
   const [lastSaved, setLastSaved] = useState<Row[]>(initial);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
-  // Values changed in the sheet (seen on "Actualizar") replace these, unless the athlete is editing.
+  // Values changed in the sheet (seen on pull to refresh) replace these, unless the athlete is editing.
   const savedKey = JSON.stringify(initial);
   const [shownKey, setShownKey] = useState(savedKey);
   if (savedKey !== shownKey && !open) {

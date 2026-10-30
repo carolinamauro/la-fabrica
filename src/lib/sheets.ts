@@ -19,7 +19,7 @@ function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
   return value;
 }
 
-/** Drops every cached read, so the next ones come straight from the sheets (the app's "Actualizar"). */
+/** Drops every cached read, so the next ones come straight from the sheets (pull to refresh). */
 export function clearSheetCache() {
   cache.clear();
 }

@@ -96,9 +96,10 @@ async function request<T>(method: "GET" | "PATCH", path: string, body?: unknown,
   } catch (error) {
     const response = (error as { response?: { status?: number; data?: { error?: { message?: string } } } }).response;
     const status = response?.status;
-    // A document not created yet is fine; a database not created yet ("The database (default)
-    // does not exist…") means Firestore isn't set up.
-    const missingDatabase = /database/i.test(response?.data?.error?.message ?? "");
+    // A document not created yet ("Document \"…/databases/(default)/documents/…\" not found") is
+    // fine; a database not created yet ("The database (default) does not exist…") means Firestore
+    // isn't set up.
+    const missingDatabase = /database \S+ does not exist/i.test(response?.data?.error?.message ?? "");
     if (method === "GET" && status === 404 && !missingDatabase) return undefined;
     throw new FirestoreUnavailable(`Firestore ${method} failed${status ? ` (${status})` : ""}`);
   }

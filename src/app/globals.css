@@ -99,9 +99,13 @@ details[open]::details-content {
 
 /* --- Page transitions (React <ViewTransition>, see DayNav.tsx) --- */
 
-/* A section arriving from another route: its loading screen interrupts a view transition. */
+/*
+ * A section arriving from another route: its loading screen interrupts a view transition.
+ * `backwards`, never `forwards`/`both`: an animation still in effect on `translate` would make this
+ * the containing block of the sheets inside (position: fixed), trapping them in the scrolled content.
+ */
 .page-in {
-  animation: page-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: page-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
 @keyframes page-in {
   from {

@@ -33,7 +33,8 @@ export function Sheet({ label, onDismiss, className, children }: { label: string
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col pt-[calc(env(safe-area-inset-top)+1.5rem)]" onClick={dismiss}>
+    // overflow-hidden: focusing a field inside never scrolls this frame (which would push the panel off the top).
+    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden pt-[calc(env(safe-area-inset-top)+1.5rem)]" onClick={dismiss}>
       <motion.div
         aria-hidden
         className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
@@ -59,7 +60,7 @@ export function Sheet({ label, onDismiss, className, children }: { label: string
         <div
           aria-hidden
           onPointerDown={(e) => controls.start(e)}
-          className="absolute inset-x-0 top-0 z-10 flex h-5 cursor-grab touch-none justify-center pt-1.5 active:cursor-grabbing"
+          className="absolute inset-x-0 top-0 z-30 flex h-5 cursor-grab touch-none justify-center pt-1.5 active:cursor-grabbing"
         >
           <span className="h-1 w-10 rounded-full bg-muted/40" />
         </div>

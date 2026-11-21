@@ -11,6 +11,9 @@ export type PickerItem = Pick<ExerciseHistory, "key" | "name" | "category"> & { 
 // Accents and case don't matter when searching ("olimpicos" finds "OLÍMPICOS").
 const fold = (text: string) => text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
+// Focused without scrolling: autoFocus would scroll to the field while the sheet is still sliding up.
+const focusQuietly = (input: HTMLInputElement | null) => input?.focus({ preventScroll: true });
+
 /** Button with the current exercise; opens a searchable list grouped by catalog category. */
 export function ExercisePicker({ items, selected, onSelect }: { items: PickerItem[]; selected: PickerItem; onSelect: (key: string) => void }) {
   const [open, setOpen] = useState(false);
@@ -48,10 +51,11 @@ export function ExercisePicker({ items, selected, onSelect }: { items: PickerIte
 
       {open && (
         <Sheet label="Elegir ejercicio" onDismiss={() => setOpen(false)} className="bg-background px-4 pt-4">
-          <div className="flex items-center gap-2">
+          {/* Stays on top while the list scrolls under it. */}
+          <div className="sticky top-0 z-10 -mx-4 -mt-4 flex items-center gap-2 border-b border-line/60 bg-background/95 px-4 pt-6 pb-3 backdrop-blur">
             <input
+              ref={focusQuietly}
               type="search"
-              autoFocus
               enterKeyHint="search"
               placeholder="Buscar ejercicio"
               aria-label="Buscar ejercicio"

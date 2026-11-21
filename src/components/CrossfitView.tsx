@@ -34,13 +34,11 @@ export function CrossfitWorkout({ plan, path = "/" }: { plan: CrossfitPlan; path
           active: day === plan.selectedDay,
         }))}
       />
-      <DaySwipe previous={previous} next={next}>
-        <Slide id={plan.selectedDay}>
-          <div className="flex flex-col gap-4">
-            <DayTitle eyebrow={plan.workout.week && prettyLabel(plan.workout.week)} title={prettyLabel(plan.selectedDay)} />
-            <WorkoutBlocks blocks={plan.workout.blocks} calculator={CROSSFIT_CALCULATOR} />
-          </div>
-        </Slide>
+      <DaySwipe id={plan.selectedDay} previous={previous} next={next}>
+        <div className="flex flex-col gap-4">
+          <DayTitle eyebrow={plan.workout.week && prettyLabel(plan.workout.week)} title={prettyLabel(plan.selectedDay)} />
+          <WorkoutBlocks blocks={plan.workout.blocks} calculator={CROSSFIT_CALCULATOR} />
+        </div>
       </DaySwipe>
     </>
   );

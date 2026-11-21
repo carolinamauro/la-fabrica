@@ -119,6 +119,13 @@ details[open]::details-content {
   pointer-events: none;
 }
 
+/* Only the parts that change move: no cross-fade of the whole page on top of the day's slide
+   (it showed both days at once for a moment). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
 /* Later day / section: the old content leaves to the left and the new one comes from the right. */
 ::view-transition-old(.nav-forward) {
   --slide-offset: -60px;

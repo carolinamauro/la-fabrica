@@ -57,9 +57,41 @@ function headerIndex(header: string[]) {
   return (name: string) => header.findIndex((h) => label(h) === name);
 }
 
+/**
+ * REGISTRO rows without the series the athlete cleared afterwards: clearing a series in the app
+ * appends a row with its SERIE and nothing in REPS_PRESCRIPTAS, CARGA, REPS_REALES or RESULTADO,
+ * which takes back every earlier row of that athlete / week / day / exercise / series (and is
+ * dropped itself). An incomplete row typed in the sheet keeps its REPS_PRESCRIPTAS, so it isn't
+ * one. The log stays append-only; a value typed again after the clear counts again.
+ */
+export function withoutClearedSeries(header: string[], data: string[][]): string[][] {
+  const col = headerIndex(header);
+  const key = ["ID_ATLETA", "SEMANA", "DIA", "EJERCICIO", "SERIE"].map(col);
+  const values = ["REPS_PRESCRIPTAS", "CARGA", "REPS_REALES", "RESULTADO"].map(col).filter((i) => i >= 0);
+  const setIdx = col("SERIE");
+  if (key.some((i) => i < 0) || !values.length) return data;
+
+  const kept: (string[] | null)[] = [];
+  const open = new Map<string, number[]>();
+  for (const row of data) {
+    const id = key.map((i) => label(row[i])).join("|");
+    if (toNumber(row[setIdx])) {
+      if (values.every((i) => !row[i]?.trim())) {
+        for (const at of open.get(id) ?? []) kept[at] = null;
+        open.delete(id);
+        continue;
+      }
+      open.set(id, [...(open.get(id) ?? []), kept.length]);
+    }
+    kept.push(row);
+  }
+  return kept.filter((row): row is string[] => row !== null);
+}
+
 /** The latest load/reps the athlete saved for each exercise and set of one day (later rows win). */
 export function parseResults(rows: string[][], athleteId: string, { week, day }: DaySelection): SavedResults {
-  const [header = [], ...data] = rows;
+  const [header = [], ...all] = rows;
+  const data = withoutClearedSeries(header, all);
   const col = headerIndex(header);
   const idx = {
     id: col("ID_ATLETA"),
@@ -112,7 +144,8 @@ export function parseNotes(rows: string[][], athleteId: string, { week, day }: D
 
 /** The heaviest CARGA of each exercise on any day (RMs typed in the calculator included). */
 export function parseBestLoads(rows: string[][], athleteId: string): BestLoads {
-  const [header = [], ...data] = rows;
+  const [header = [], ...all] = rows;
+  const data = withoutClearedSeries(header, all);
   const col = headerIndex(header);
   const idx = { id: col("ID_ATLETA"), name: col("EJERCICIO"), load: col("CARGA") };
   if (Object.values(idx).some((i) => i < 0)) return {};
@@ -169,12 +202,15 @@ export function buildResultRows({ header, athlete, selection, exercise, sets, pr
   const toRow = (values: Record<string, string | number | undefined>) => header.map((h) => values[label(h)] ?? "");
 
   const rows = sets
-    .filter(({ load, reps }) => load !== undefined || reps !== undefined)
     .filter((entry) => {
       const saved = previous.find((p) => p.set === entry.set);
+      const empty = entry.load === undefined && entry.reps === undefined;
+      // An empty series is written only to clear one saved before (see withoutClearedSeries).
+      if (empty) return saved !== undefined;
       return !saved || saved.load !== entry.load || saved.reps !== entry.reps;
     })
     .map(({ set, load, reps }) => {
+      if (load === undefined && reps === undefined) return toRow({ ...base, SERIE: set });
       const e1rm = withE1rm && load && reps ? epley(load, reps) : undefined;
       return toRow({
         ...base,
@@ -321,7 +357,8 @@ export type PersonalRecord = { exercise: string; kind: "load" | "e1rm"; load: nu
  * were before saving). The first time an exercise is logged is not a record: there's nothing to beat.
  */
 export function detectPersonalRecord(rows: string[][], athleteId: string, exercise: string, sets: SetResult[]): PersonalRecord | undefined {
-  const [header = [], ...data] = rows;
+  const [header = [], ...all] = rows;
+  const data = withoutClearedSeries(header, all);
   const col = headerIndex(header);
   const idx = { id: col("ID_ATLETA"), name: col("EJERCICIO"), load: col("CARGA"), reps: col("REPS_REALES") };
   if (Object.values(idx).some((i) => i < 0)) return undefined;

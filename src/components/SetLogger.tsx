@@ -229,28 +229,39 @@ export function SetLogger({ week, day, name, order, setCount, rest, saved, note,
     if (!focusLoad(index + 1)) event.currentTarget.blur();
   }
 
-  /** Saves just this series (the others are left as they are in the sheet) and starts the rest. */
+  /**
+   * Saves just this series (the others are left as they are in the sheet) and starts the rest; on
+   * a series already done it takes it back (saved as cleared), keeping what's typed to fix it.
+   */
   async function check(index: number) {
     unlockAudio();
     const row = rows[index];
-    if (!isFilled(row)) return setStatus({ kind: "error", message: `Cargá la carga o las reps de la serie ${index + 1}.` });
-    const set = toSet(row, index);
-    if (typeof set === "string") return setStatus({ kind: "error", message: set });
+    const undo = isDone(index);
+    let set: SetResult | string = { set: index + 1 };
+    if (!undo) {
+      if (!isFilled(row)) return setStatus({ kind: "error", message: `Cargá la carga o las reps de la serie ${index + 1}.` });
+      set = toSet(row, index);
+      if (typeof set === "string") return setStatus({ kind: "error", message: set });
+    }
 
     const previous = lastSaved[index];
-    // Optimistic: the check lights up now, and goes back if the sheet refuses it.
+    // Optimistic: the check changes now, and goes back if the sheet refuses it.
     setLastSaved((current) => {
       const next = [...current];
-      next[index] = row;
+      next[index] = undo ? { load: "", reps: "" } : row;
       return next;
     });
     setChecking((current) => new Set(current).add(index));
     setStatus({ kind: "idle" });
-    vibrate(35);
-    chime();
-    const isLast = rows.every((r, i) => i === index || isDone(i));
-    if (!isLast) startRest(durationFromText(rest) ?? DEFAULT_REST_SECONDS, `${name} · serie ${index + 2}`);
-    (document.activeElement as HTMLElement | null)?.blur();
+    if (undo) {
+      vibrate(15);
+    } else {
+      vibrate(35);
+      chime();
+      const isLast = rows.every((r, i) => i === index || isDone(i));
+      if (!isLast) startRest(durationFromText(rest) ?? DEFAULT_REST_SECONDS, `${name} · serie ${index + 2}`);
+      (document.activeElement as HTMLElement | null)?.blur();
+    }
 
     try {
       const result = await saveSetsAction({ week, day, name, order, sets: [set] });
@@ -425,9 +436,9 @@ export function SetLogger({ week, day, name, order, setCount, rest, saved, note,
                 </label>
                 <motion.button
                   type="button"
-                  aria-label={done ? `Serie ${i + 1} hecha` : `Marcar serie ${i + 1} como hecha`}
+                  aria-label={done ? `Desmarcar serie ${i + 1}` : `Marcar serie ${i + 1} como hecha`}
                   aria-pressed={done}
-                  disabled={busy || done}
+                  disabled={busy}
                   whileTap={{ scale: 0.85 }}
                   onClick={() => check(i)}
                   className={`relative grid size-12 shrink-0 place-items-center rounded-xl border-2 transition-colors ${

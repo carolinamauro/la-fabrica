@@ -1,4 +1,4 @@
-import { estimateOneRepMax, resultKey } from "./results";
+import { estimateOneRepMax, resultKey, withoutClearedSeries } from "./results";
 
 /**
  * Performance history per exercise, like the coach's HISTORIAL tab but for the signed-in athlete
@@ -174,7 +174,9 @@ export function parseHistoryCatalog(rows: string[][], athleteType?: string): Cat
 
 /** REGISTRO_PLANIFICACION rows of one athlete (other athletes' rows never leave this function). */
 export function parseHistoryRecords(rows: string[][], athleteId: string): HistoryRecord[] {
-  const [header = [], ...data] = rows;
+  const [header = [], ...all] = rows;
+  // A series the athlete cleared in the app is no longer theirs to chart.
+  const data = withoutClearedSeries(header, all);
   const col = headerIndex(header);
   const idx = {
     date: col("FECHA"),

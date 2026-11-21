@@ -4,7 +4,7 @@ import type { Block } from "@/lib/types";
 import { Chips } from "./Chips";
 import { DayTitle } from "./DayTitle";
 import { homeHref, prettyLabel } from "./format";
-import { DaySwipe, Slide } from "./DayNav";
+import { DaySwipe } from "./DayNav";
 import { BlockRing, DayProgress } from "./ProgressRing";
 import { StreakBar, type StreakSummary } from "./StreakBar";
 import { SetLogger } from "./SetLogger";
@@ -47,7 +47,8 @@ export function PersonalizedView({ plan, saved, streak }: { plan: PersonalizedPl
         label="Semanas"
         items={weeks.map((w) => ({
           label: prettyLabel(w.week),
-          href: homeHref({ week: w.week, day: w.days[0] }),
+          // Same day in the other week when it has one (Día 3 → Día 3), else its first.
+          href: homeHref({ week: w.week, day: w.days.includes(selected.day) ? selected.day : w.days[0] }),
           active: w.week === selected.week,
         }))}
       />
@@ -59,8 +60,7 @@ export function PersonalizedView({ plan, saved, streak }: { plan: PersonalizedPl
           active: day === selected.day,
         }))}
       />
-      <DaySwipe previous={previous && homeHref(previous)} next={next && homeHref(next)}>
-        <Slide id={`${selected.week}-${selected.day}`}>
+      <DaySwipe id={`${selected.week}-${selected.day}`} previous={previous && homeHref(previous)} next={next && homeHref(next)}>
           <div className="flex flex-col gap-4">
             <DayTitle eyebrow={prettyLabel(selected.week)} title={prettyLabel(selected.day)} />
             <DayProgress {...day} />
@@ -86,7 +86,6 @@ export function PersonalizedView({ plan, saved, streak }: { plan: PersonalizedPl
               )}
             />
           </div>
-        </Slide>
       </DaySwipe>
     </>
   );

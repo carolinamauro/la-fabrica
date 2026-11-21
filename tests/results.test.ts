@@ -51,6 +51,26 @@ describe("parseResults", () => {
   it("fails loudly when the tab changed shape", () => {
     expect(() => parseResults([["FECHA", "ID_ATLETA"]], "ATL_A", selection)).toThrow(/missing/);
   });
+
+  it("drops a series cleared afterwards, and counts it again when typed back", () => {
+    // What buildResultRows writes for a cleared series: SERIE and no prescribed reps or results.
+    const clear = (week: string, set: string) => ["2026-09-01 11:00:00", "ATL_A", week, "DIA 2", "HIP THRUST", set];
+    const cleared = [
+      HEADER,
+      row("ATL_A", "SEMANA 1", "DIA 2", "HIP THRUST", "1", "100", "8"),
+      row("ATL_A", "SEMANA 1", "DIA 2", "HIP THRUST", "2", "110", "8"),
+      clear("SEMANA 1", "1"),
+      clear("SEMANA 2", "2"), // another day's clear
+    ];
+    expect(parseResults(cleared, "ATL_A", selection)).toEqual({ "HIP THRUST": [{ set: 2, load: 110, reps: 8 }] });
+    expect(parseBestLoads(cleared, "ATL_A")).toEqual({ "HIP THRUST": 110 });
+
+    const retyped = [...cleared, row("ATL_A", "SEMANA 1", "DIA 2", "HIP THRUST", "1", "95", "8")];
+    expect(parseResults(retyped, "ATL_A", selection)["HIP THRUST"]).toEqual([
+      { set: 1, load: 95, reps: 8 },
+      { set: 2, load: 110, reps: 8 },
+    ]);
+  });
 });
 
 describe("buildResultRows", () => {
@@ -78,6 +98,13 @@ describe("buildResultRows", () => {
     expect(rows).toEqual([
       ["2026-10-26 08:30:00", "ATL_A", "SEMANA 1", "DIA 2", "HIP THRUST", 2, 8, 110, 8, 110, "KG", "", "RPE8", 80, 139.3, 1.74],
     ]);
+  });
+
+  it("writes a series cleared after saving as a row with only its SERIE", () => {
+    const rows = buildResultRows({ ...base, withE1rm: true, sets: [{ set: 1 }] });
+    expect(rows).toEqual([["2026-10-26 08:30:00", "ATL_A", "SEMANA 1", "DIA 2", "HIP THRUST", 1, "", "", "", "", "", "", "", "", "", ""]]);
+    // Never saved: nothing to clear.
+    expect(buildResultRows({ ...base, withE1rm: true, previous: [], sets: [{ set: 1 }] })).toEqual([]);
   });
 
   it("stores reps-only sets as REPS and leaves E1RM empty", () => {

@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, type KeyboardEvent } from "react";
 import { saveSetsAction } from "@/app/actions";
 import { chime, unlockAudio, vibrate } from "@/lib/feedback";
-import type { ExerciseNote, SetResult } from "@/lib/results";
+import type { ExerciseNote, PersonalRecord, SetResult } from "@/lib/results";
+import { useCelebrate, type Cheer } from "./Celebration";
 import { durationFromText } from "@/lib/timer";
 import { MAX_NOTE_LENGTH, MAX_SETS } from "@/lib/types";
 import { prettyLabel } from "./format";
@@ -29,6 +30,20 @@ type Props = {
   /** Their latest note on it from another day, as a reminder. */
   previousNote?: ExerciseNote;
 };
+
+/** "¡Nuevo PR! 105 kg · antes 100 kg". */
+function recordCheer(record: PersonalRecord): Cheer {
+  const kg = (n: number) => `${String(n).replace(".", ",")} kg`;
+  return record.kind === "load"
+    ? { icon: "🏆", eyebrow: "¡Nuevo PR!", title: record.exercise, value: kg(record.load), detail: `Tu mejor carga era ${kg(record.previous)}${record.reps ? ` · hoy ×${record.reps}` : ""}` }
+    : {
+        icon: "📈",
+        eyebrow: "¡Récord de E1RM!",
+        title: record.exercise,
+        value: kg(record.value),
+        detail: `${kg(record.load)} × ${record.reps}: tu 1RM estimado era ${kg(record.previous)}`,
+      };
+}
 
 /** Rest between series when the plan doesn't say. */
 const DEFAULT_REST_SECONDS = 90;
@@ -150,6 +165,7 @@ function PreviousNote({ previous }: { previous: ExerciseNote }) {
 export function SetLogger({ week, day, name, order, setCount, rest, saved, note, previousNote }: Props) {
   const router = useRouter();
   const startRest = useStartRest();
+  const celebrate = useCelebrate();
   const lastSet = Math.max(0, ...saved.map((s) => s.set));
   const initial = Array.from({ length: Math.min(Math.max(setCount, lastSet), MAX_SETS) }, (_, i) => {
     const entry = saved.find((s) => s.set === i + 1);
@@ -239,6 +255,7 @@ export function SetLogger({ week, day, name, order, setCount, rest, saved, note,
     try {
       const result = await saveSetsAction({ week, day, name, order, sets: [set] });
       if (!result.ok) throw new Error(result.error);
+      if (result.record) celebrate(recordCheer(result.record));
       router.refresh();
     } catch (error) {
       setLastSaved((current) => {
@@ -286,7 +303,8 @@ export function SetLogger({ week, day, name, order, setCount, rest, saved, note,
       setLastSavedNote(savedNote);
       setStatus({ kind: "saved" });
       setOpen(false);
-      vibrate(35);
+      if (result.record) celebrate(recordCheer(result.record));
+      else vibrate(35);
       // Refresh the block's series counter from the sheet.
       router.refresh();
     } catch {

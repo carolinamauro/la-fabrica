@@ -6,6 +6,7 @@ import { DayTitle } from "./DayTitle";
 import { homeHref, prettyLabel } from "./format";
 import { DaySwipe, Slide } from "./DayNav";
 import { BlockRing, DayProgress } from "./ProgressRing";
+import { StreakBar, type StreakSummary } from "./StreakBar";
 import { SetLogger } from "./SetLogger";
 import { WorkoutBlocks } from "./WorkoutBlocks";
 
@@ -24,7 +25,7 @@ function BlockProgress({ block, saved }: { block: Block; saved: SavedResults }) 
   return <BlockRing done={done} total={total} />;
 }
 
-export function PersonalizedView({ plan, saved }: { plan: PersonalizedPlan; saved: SavedDay }) {
+export function PersonalizedView({ plan, saved, streak }: { plan: PersonalizedPlan; saved: SavedDay; streak?: StreakSummary | null }) {
   const { weeks, selected, workout } = plan;
   const days = weeks.find((w) => w.week === selected.week)?.days ?? [];
   const series = workout.blocks.map((block) => blockSeries(block, saved.sets)).filter(({ total }) => total > 0);
@@ -63,6 +64,7 @@ export function PersonalizedView({ plan, saved }: { plan: PersonalizedPlan; save
           <div className="flex flex-col gap-4">
             <DayTitle eyebrow={prettyLabel(selected.week)} title={prettyLabel(selected.day)} />
             <DayProgress {...day} />
+            {streak && <StreakBar streak={streak} />}
             <WorkoutBlocks
               blocks={workout.blocks}
               renderAside={(block) => <BlockProgress block={block} saved={saved.sets} />}

@@ -3,6 +3,7 @@ import { CrossfitScreen } from "@/components/CrossfitScreen";
 import { singleParams } from "@/components/format";
 import { PersonalizedView } from "@/components/PersonalizedView";
 import { PlanSwitcher } from "@/components/PlanSwitcher";
+import { getAchievements } from "@/lib/achievements-data";
 import { findAthleteByEmail } from "@/lib/athletes";
 import { getPersonalizedPlan } from "@/lib/personalized";
 import { getAvailablePlans } from "@/lib/plans";
@@ -29,15 +30,32 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     return <CrossfitScreen name={athlete.firstName} params={params} path="/" />;
   }
 
-  const [plans, plan] = await Promise.all([
+  const [plans, plan, achievements] = await Promise.all([
     getAvailablePlans(athlete),
     getPersonalizedPlan(athlete, { week: params.week, day: params.day }),
+    // Badges are remembered on the Logros page, where they are celebrated.
+    getAchievements(athlete, { remember: false }).catch((error) => {
+      console.error("HomePage: achievements unavailable", { athleteId: athlete.id, error });
+      return null;
+    }),
   ]);
   const saved = plan ? await getSavedResults(athlete, plan.selected) : { sets: {}, notes: {}, bestLoads: {} };
   return (
     <AppShell name={athlete.firstName} nav={<PlanSwitcher plans={plans} active="PERSONALIZED" history={Boolean(athlete.spreadsheetId)} />}>
       {plan ? (
-        <PersonalizedView plan={plan} saved={saved} />
+        <PersonalizedView
+          plan={plan}
+          saved={saved}
+          streak={
+            achievements && {
+              weeks: achievements.streak,
+              days: achievements.thisWeek.days,
+              goal: achievements.goals.weeklyDays,
+              weekdays: achievements.thisWeek.weekdays,
+              newBadges: achievements.fresh.length,
+            }
+          }
+        />
       ) : (
         <Message title="Tu planificación todavía no está lista">Tu coach la está preparando. Volvé a mirar más tarde.</Message>
       )}

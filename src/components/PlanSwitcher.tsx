@@ -3,10 +3,10 @@ import { ViewTransition } from "react";
 import type { PlanType } from "@/lib/plans";
 import { direction } from "./transitions";
 
-/** A tab of the top navigation: one of the athlete's plans, or their Historial. */
-export type Section = PlanType | "HISTORY";
+/** A tab of the top navigation: one of the athlete's plans, their Historial or their Logros. */
+export type Section = PlanType | "HISTORY" | "ACHIEVEMENTS";
 
-const LABELS: Record<Section, string> = { PERSONALIZED: "Mi plan", CROSSFIT: "CrossFit", HISTORY: "Historial" };
+const LABELS: Record<Section, string> = { PERSONALIZED: "Mi plan", CROSSFIT: "CrossFit", HISTORY: "Historial", ACHIEVEMENTS: "Logros" };
 
 /**
  * Tabs between the athlete's main plan ("/"), the CrossFit plan as an extra ("/crossfit") and,
@@ -16,7 +16,13 @@ const LABELS: Record<Section, string> = { PERSONALIZED: "Mi plan", CROSSFIT: "Cr
 export function PlanSwitcher({ plans, active, history = false }: { plans: PlanType[]; active: Section; history?: boolean }) {
   const tabs = [
     ...plans.map((plan, i) => ({ section: plan as Section, href: i === 0 ? "/" : "/crossfit" })),
-    ...(history ? [{ section: "HISTORY" as const, href: "/historial" }] : []),
+    // Both need the athlete's own file (REGISTRO_PLANIFICACION).
+    ...(history
+      ? [
+          { section: "HISTORY" as const, href: "/historial" },
+          { section: "ACHIEVEMENTS" as const, href: "/logros" },
+        ]
+      : []),
   ];
   if (tabs.length < 2) return null;
   const current = tabs.findIndex((tab) => tab.section === active);
@@ -28,7 +34,7 @@ export function PlanSwitcher({ plans, active, history = false }: { plans: PlanTy
           href={href}
           transitionTypes={direction(i, current)}
           aria-current={section === active ? "page" : undefined}
-          className={`relative flex h-9 flex-1 items-center justify-center font-display text-base font-bold tracking-wider uppercase transition-colors ${
+          className={`relative flex h-9 min-w-0 flex-1 items-center justify-center font-display text-base font-bold tracking-wide whitespace-nowrap uppercase transition-colors ${
             section === active ? "text-foreground" : "text-muted active:text-foreground"
           }`}
         >

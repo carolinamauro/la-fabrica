@@ -313,6 +313,50 @@ export async function getSavedResults(athlete: Athlete, selection: DaySelection)
 
 export class ResultError extends Error {}
 
+/** A personal record set by a save: heavier than ever ("load"), or a better estimated 1RM ("e1rm"). */
+export type PersonalRecord = { exercise: string; kind: "load" | "e1rm"; load: number; reps?: number; previous: number; value: number };
+
+/**
+ * Whether `sets` beat everything the athlete logged before for `exercise` (REGISTRO rows as they
+ * were before saving). The first time an exercise is logged is not a record: there's nothing to beat.
+ */
+export function detectPersonalRecord(rows: string[][], athleteId: string, exercise: string, sets: SetResult[]): PersonalRecord | undefined {
+  const [header = [], ...data] = rows;
+  const col = headerIndex(header);
+  const idx = { id: col("ID_ATLETA"), name: col("EJERCICIO"), load: col("CARGA"), reps: col("REPS_REALES") };
+  if (Object.values(idx).some((i) => i < 0)) return undefined;
+
+  const name = label(exercise);
+  let bestLoad: number | undefined;
+  let bestE1rm: number | undefined;
+  for (const row of data) {
+    if (row[idx.id]?.trim() !== athleteId.trim() || label(row[idx.name]) !== name) continue;
+    const load = toNumber(row[idx.load]);
+    if (load === undefined) continue;
+    bestLoad = Math.max(bestLoad ?? 0, load);
+    const reps = toNumber(row[idx.reps]);
+    if (reps) bestE1rm = Math.max(bestE1rm ?? 0, estimateOneRepMax(load, reps));
+  }
+  if (bestLoad === undefined) return undefined;
+
+  const withLoad = sets.filter((s): s is SetResult & { load: number } => s.load !== undefined && s.load > 0);
+  const heaviest = withLoad.reduce<(SetResult & { load: number }) | undefined>((top, s) => (!top || s.load > top.load ? s : top), undefined);
+  if (heaviest && heaviest.load > bestLoad) {
+    return { exercise, kind: "load", load: heaviest.load, reps: heaviest.reps, previous: bestLoad, value: heaviest.load };
+  }
+  // Same or lighter load, more reps: a better estimated 1RM (by more than rounding noise).
+  let topE1rm: { set: SetResult & { load: number }; value: number } | undefined;
+  for (const s of withLoad) {
+    if (!s.reps) continue;
+    const value = estimateOneRepMax(s.load, s.reps);
+    if (!topE1rm || value > topE1rm.value) topE1rm = { set: s, value };
+  }
+  if (topE1rm && bestE1rm !== undefined && topE1rm.value > bestE1rm + 0.5) {
+    return { exercise, kind: "e1rm", load: topE1rm.set.load, reps: topE1rm.set.reps, previous: round(bestE1rm, 1), value: round(topE1rm.value, 1) };
+  }
+  return undefined;
+}
+
 export type SaveInput = DaySelection & { name: string; order?: string; sets: SetResult[]; note?: string };
 
 // The athlete can log more series than prescribed, up to the 6 Carga/Reps pairs of the sheet.
@@ -326,7 +370,7 @@ function validSet({ set, load, reps }: SetResult) {
  * into MI_PLANIFICACION's Carga/Reps cells when that week/day is the one selected in the sheet.
  * The exercise must be in that athlete's plan for that week/day. Returns how many rows were added.
  */
-export async function saveResults(athlete: Athlete, input: SaveInput): Promise<number> {
+export async function saveResults(athlete: Athlete, input: SaveInput): Promise<{ rows: number; record?: PersonalRecord }> {
   if (!athlete.spreadsheetId) throw new ResultError("Tu planilla todavía no está configurada.");
   const id = athlete.spreadsheetId;
   const selection = { week: label(input.week), day: label(input.day) };
@@ -366,11 +410,13 @@ export async function saveResults(athlete: Athlete, input: SaveInput): Promise<n
     withE1rm: parseE1rmExercises(catalog).has(label(exercise.name)),
     recordedAt: formatRecordedAt(new Date()),
   });
+  // Compared with REGISTRO as it was before this save.
+  const record = rows.length ? detectPersonalRecord(registro, athlete.id, exercise.name, input.sets) : undefined;
   if (rows.length) await appendRows(id, REGISTRO_RANGE, rows);
 
   // Mirror the loads and note in MI_PLANIFICACION when this day is the one open in the sheet.
   if (sheet && target) await writeCells(id, sheetLoadCells(sheet, target.row, input.sets, note), MI_RANGE);
-  return rows.length;
+  return { rows: rows.length, record };
 }
 
 /**

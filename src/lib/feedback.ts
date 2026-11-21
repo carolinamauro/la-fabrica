@@ -55,6 +55,8 @@ export function chime() {
 }
 
 export function vibrate(pattern: number | number[]) {
+  // Browsers refuse (and log a warning) before the person has tapped the page.
+  if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
   try {
     navigator.vibrate?.(pattern);
   } catch {

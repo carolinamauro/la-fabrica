@@ -3,7 +3,10 @@
 import { refresh } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { findAthleteByEmail } from "@/lib/athletes";
+import { findAthleteByEmail, type Athlete } from "@/lib/athletes";
+import { saveCrossfitLift, saveCrossfitResult, type CrossfitSetsInput, type CrossfitWodInput } from "@/lib/crossfit-save";
+import { FirestoreUnavailable } from "@/lib/firestore";
+import { getAvailablePlans } from "@/lib/plans";
 import { saveGoals } from "@/lib/firestore";
 import { MAX_LIFT_GOALS, type Goals } from "@/lib/goals";
 import { ResultError, saveResults, saveRm, type PersonalRecord, type SaveInput } from "@/lib/results";
@@ -88,5 +91,44 @@ export async function saveGoalsAction(input: Goals): Promise<SaveSetsResult> {
   } catch (error) {
     console.error("saveGoalsAction failed", { athleteId: athlete.id, error });
     return { ok: false, error: "No pudimos guardar tus objetivos. Probá de nuevo en un rato." };
+  }
+}
+
+/** The signed-in athlete, when they see the CrossFit plan (as their plan or as an extra). */
+async function crossfitAthlete(): Promise<Athlete | null> {
+  const session = await getSession();
+  const athlete = session ? await findAthleteByEmail(session.email) : null;
+  if (!athlete) return null;
+  return athlete.planType === "CROSSFIT" || (await getAvailablePlans(athlete)).includes("CROSSFIT") ? athlete : null;
+}
+
+function crossfitError(name: string, athlete: Athlete, error: unknown): { ok: false; error: string } {
+  if (error instanceof ResultError) return { ok: false, error: error.message };
+  console.error(`${name} failed`, { athleteId: athlete.id, error });
+  if (error instanceof FirestoreUnavailable) return { ok: false, error: "No pudimos guardar ahora. Probá de nuevo en un rato." };
+  return { ok: false, error: "No pudimos guardar. Revisá tu conexión y probá de nuevo." };
+}
+
+/** Saves series of a lift of a CrossFit day (in the athlete's own CrossFit log). */
+export async function saveCrossfitSetsAction(input: CrossfitSetsInput): Promise<SaveSetsResult> {
+  const athlete = await crossfitAthlete();
+  if (!athlete) return { ok: false, error: "Tu sesión expiró. Volvé a ingresar." };
+  try {
+    const { record } = await saveCrossfitLift(athlete, input);
+    return { ok: true, record };
+  } catch (error) {
+    return crossfitError("saveCrossfitSetsAction", athlete, error);
+  }
+}
+
+/** Saves (or deletes, with score null) the result of a WOD of a CrossFit day. */
+export async function saveCrossfitWodAction(input: CrossfitWodInput): Promise<SaveSetsResult> {
+  const athlete = await crossfitAthlete();
+  if (!athlete) return { ok: false, error: "Tu sesión expiró. Volvé a ingresar." };
+  try {
+    await saveCrossfitResult(athlete, input);
+    return { ok: true };
+  } catch (error) {
+    return crossfitError("saveCrossfitWodAction", athlete, error);
   }
 }

@@ -30,6 +30,7 @@ function summaryCards({ metric, summary, days }: ExerciseHistory): Card[] {
   }
   if (metric === "reps" && summary.best !== undefined) cards.push({ label: "Mejores reps", value: formatMetric("reps", summary.best) });
   if (metric === "time" && summary.best !== undefined) cards.push({ label: "Mejor tiempo", value: formatMetric("time", summary.best) });
+  if (metric === "rounds" && summary.best !== undefined) cards.push({ label: "Mejor resultado", value: formatMetric("rounds", summary.best) });
   if (summary.ratio !== undefined) cards.push({ label: "Ratio BW", value: formatRatio(summary.ratio), hint: "E1RM / peso corporal" });
   // With a single day there's nothing to compare yet.
   if (summary.progress !== undefined && days.length > 1) {

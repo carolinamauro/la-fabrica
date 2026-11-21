@@ -6,7 +6,7 @@ import { PlanSwitcher } from "@/components/PlanSwitcher";
 import { getAchievements } from "@/lib/achievements-data";
 import { findAthleteByEmail } from "@/lib/athletes";
 import { getPersonalizedPlan } from "@/lib/personalized";
-import { getAvailablePlans } from "@/lib/plans";
+import { getAvailablePlans, hasHistory } from "@/lib/plans";
 import { getSavedResults } from "@/lib/results";
 import { getSession } from "@/lib/session";
 
@@ -27,7 +27,8 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   }
 
   if (athlete.planType === "CROSSFIT") {
-    return <CrossfitScreen name={athlete.firstName} params={params} path="/" />;
+    // CrossFit results live in Firestore, so these athletes have a Historial and Logros too.
+    return <CrossfitScreen athlete={athlete} params={params} path="/" nav={<PlanSwitcher plans={["CROSSFIT"]} active="CROSSFIT" history />} />;
   }
 
   const [plans, plan, achievements] = await Promise.all([
@@ -41,7 +42,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   ]);
   const saved = plan ? await getSavedResults(athlete, plan.selected) : { sets: {}, notes: {}, bestLoads: {} };
   return (
-    <AppShell name={athlete.firstName} nav={<PlanSwitcher plans={plans} active="PERSONALIZED" history={Boolean(athlete.spreadsheetId)} />}>
+    <AppShell name={athlete.firstName} nav={<PlanSwitcher plans={plans} active="PERSONALIZED" history={hasHistory(athlete, plans)} />}>
       {plan ? (
         <PersonalizedView
           plan={plan}

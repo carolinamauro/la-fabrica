@@ -30,3 +30,11 @@ export async function getAvailablePlans(athlete: Athlete): Promise<PlanType[]> {
     return ["PERSONALIZED"];
   }
 }
+
+/**
+ * Whether the athlete has a Historial and Logros: results logged in their own file
+ * (REGISTRO_PLANIFICACION), or on the CrossFit plan (kept in Firestore).
+ */
+export function hasHistory(athlete: Athlete, plans: PlanType[]): boolean {
+  return Boolean(athlete.spreadsheetId) || plans.includes("CROSSFIT");
+}

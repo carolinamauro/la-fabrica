@@ -364,14 +364,19 @@ export function detectPersonalRecord(rows: string[][], athleteId: string, exerci
   if (Object.values(idx).some((i) => i < 0)) return undefined;
 
   const name = label(exercise);
+  const before = data
+    .filter((row) => row[idx.id]?.trim() === athleteId.trim() && label(row[idx.name]) === name)
+    .map((row) => ({ load: toNumber(row[idx.load]), reps: toNumber(row[idx.reps]) }));
+  return personalRecordOver(before, exercise, sets);
+}
+
+/** Whether `sets` beat every earlier series of the exercise (`before`, from any source). */
+export function personalRecordOver(before: Pick<SetResult, "load" | "reps">[], exercise: string, sets: SetResult[]): PersonalRecord | undefined {
   let bestLoad: number | undefined;
   let bestE1rm: number | undefined;
-  for (const row of data) {
-    if (row[idx.id]?.trim() !== athleteId.trim() || label(row[idx.name]) !== name) continue;
-    const load = toNumber(row[idx.load]);
+  for (const { load, reps } of before) {
     if (load === undefined) continue;
     bestLoad = Math.max(bestLoad ?? 0, load);
-    const reps = toNumber(row[idx.reps]);
     if (reps) bestE1rm = Math.max(bestE1rm ?? 0, estimateOneRepMax(load, reps));
   }
   if (bestLoad === undefined) return undefined;

@@ -2,11 +2,9 @@ import { buildAchievements, newBadges, type Achievements, type Badge } from "./a
 import type { Athlete } from "./athletes";
 import { addBadges, getProfile } from "./firestore";
 import { DEFAULT_GOALS, type Goals } from "./goals";
-import { buildHistory, parseHistoryCatalog, parseHistoryRecords, type ExerciseHistory } from "./history";
-import { CATALOG_RANGE, formatRecordedAt, REGISTRO_RANGE } from "./results";
-import { readRange } from "./sheets";
-
-const CATALOG_TYPES: Record<Athlete["planType"], string> = { PERSONALIZED: "FUERZA", CROSSFIT: "CROSSFIT" };
+import type { ExerciseHistory } from "./history";
+import { getTraining } from "./history-data";
+import { formatRecordedAt } from "./results";
 
 export type AchievementsData = Achievements & {
   goals: Goals;
@@ -22,18 +20,11 @@ export type AchievementsData = Achievements & {
 export const todayInArgentina = () => formatRecordedAt(new Date()).slice(0, 10);
 
 /**
- * The athlete's achievements from their own file's REGISTRO_PLANIFICACION and their goals and
- * badges in Firestore. Null when the athlete has no file of their own (nothing is logged).
+ * The athlete's achievements from everything they logged (their file's REGISTRO_PLANIFICACION and
+ * their CrossFit log, see getTraining) and their goals and badges in Firestore.
  */
 export async function getAchievements(athlete: Athlete, { remember = true } = {}): Promise<AchievementsData | null> {
-  if (!athlete.spreadsheetId) return null;
-  const [registro, catalog, profile] = await Promise.all([
-    readRange(athlete.spreadsheetId, REGISTRO_RANGE),
-    readRange(athlete.spreadsheetId, CATALOG_RANGE),
-    getProfile(athlete.id),
-  ]);
-  const records = parseHistoryRecords(registro, athlete.id);
-  const history = buildHistory(parseHistoryCatalog(catalog, CATALOG_TYPES[athlete.planType]), records, athlete.bodyWeightKg);
+  const [{ records, history }, profile] = await Promise.all([getTraining(athlete), getProfile(athlete.id)]);
   const goals = profile?.goals ?? DEFAULT_GOALS;
   const today = todayInArgentina();
   const achievements = buildAchievements({ records, history, goals, today });

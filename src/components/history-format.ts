@@ -57,13 +57,22 @@ export function formatLongDate(date: string): string {
   return `${WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]} ${d} ${MONTHS[m - 1]} ${y}`;
 }
 
-export const METRIC_LABELS: Record<Metric, string> = { e1rm: "E1RM", load: "Carga máx.", reps: "Reps", time: "Tiempo" };
+export const METRIC_LABELS: Record<Metric, string> = { e1rm: "E1RM", load: "Carga máx.", reps: "Reps", time: "Tiempo", rounds: "Rondas" };
+
+/** 5.012 → "5 + 12" (rounds + extra reps). */
+export function formatRounds(value: number): string {
+  const rounds = Math.floor(value + 1e-9);
+  const reps = Math.round((value - rounds) * 1000);
+  return reps ? `${rounds} + ${reps}` : `${rounds} rondas`;
+}
 
 export function formatMetric(metric: Metric, value: number): string {
   if (metric === "time") return formatDuration(value);
+  if (metric === "rounds") return formatRounds(value);
   if (metric === "reps") return `${formatNumber(value, 1)} reps`;
   return formatKg(value);
 }
 
 /** Axis labels: no unit, to keep them short. */
-export const formatTick = (metric: Metric, value: number) => (metric === "time" ? formatDuration(value) : formatNumber(value, 1));
+export const formatTick = (metric: Metric, value: number) =>
+  metric === "time" ? formatDuration(value) : metric === "rounds" ? String(Math.round(value)) : formatNumber(value, 1);

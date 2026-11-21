@@ -3,7 +3,7 @@ import { CrossfitScreen } from "@/components/CrossfitScreen";
 import { singleParams } from "@/components/format";
 import { PlanSwitcher } from "@/components/PlanSwitcher";
 import { findAthleteByEmail } from "@/lib/athletes";
-import { getAvailablePlans } from "@/lib/plans";
+import { getAvailablePlans, hasHistory } from "@/lib/plans";
 import { getSession } from "@/lib/session";
 
 /** The CrossFit plan as an extra, for athletes whose main plan is another one but have the sheet shared. */
@@ -19,10 +19,10 @@ export default async function CrossfitPage({ searchParams }: PageProps<"/crossfi
 
   return (
     <CrossfitScreen
-      name={athlete.firstName}
+      athlete={athlete}
       params={params}
       path="/crossfit"
-      nav={<PlanSwitcher plans={plans} active="CROSSFIT" history={Boolean(athlete.spreadsheetId)} />}
+      nav={<PlanSwitcher plans={plans} active="CROSSFIT" history={hasHistory(athlete, plans)} />}
     />
   );
 }

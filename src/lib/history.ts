@@ -7,11 +7,11 @@ import { estimateOneRepMax, resultKey, withoutClearedSeries } from "./results";
  */
 
 /** How the catalog's TIPO_MEDICION says a result is measured. */
-export type Measurement = "LOAD_REPS" | "LOAD" | "REPS" | "TIME";
+export type Measurement = "LOAD_REPS" | "LOAD" | "REPS" | "TIME" | "ROUNDS";
 /** MEJOR_RESULTADO: whether a bigger (MAYOR) or smaller (MENOR) value is better. */
 export type Better = "HIGHER" | "LOWER";
 /** What a day's value (and the chart) measures. */
-export type Metric = "e1rm" | "load" | "reps" | "time";
+export type Metric = "e1rm" | "load" | "reps" | "time" | "rounds";
 
 const MEASUREMENTS: Record<string, Measurement> = {
   CARGA_REPS: "LOAD_REPS",
@@ -19,6 +19,7 @@ const MEASUREMENTS: Record<string, Measurement> = {
   REPS: "REPS",
   REPETICIONES: "REPS",
   TIEMPO: "TIME",
+  RONDAS: "ROUNDS",
 };
 
 export const isStrength = (measurement: Measurement) => measurement === "LOAD_REPS" || measurement === "LOAD";
@@ -50,7 +51,8 @@ export type HistoryRecord = {
   unit: string;
 };
 
-export type HistorySet = { at: string; set?: number; load?: number; reps?: number; seconds?: number; e1rm?: number };
+/** `rounds`: an AMRAP's rounds + extra reps as one sortable number (5 + 12 → 5.012). */
+export type HistorySet = { at: string; set?: number; load?: number; reps?: number; seconds?: number; rounds?: number; e1rm?: number };
 
 export type HistoryDay = {
   date: string;
@@ -120,6 +122,13 @@ export function parseDuration(value: string | undefined): number | undefined {
   if (parts.length > 3 || parts.some((part) => part === undefined || part < 0)) return undefined;
   const total = (parts as number[]).reduce((sum, part) => sum * 60 + part, 0);
   return total > 0 ? total : undefined;
+}
+
+/** "5+12" (rounds + extra reps) → 5.012; "5" → 5. */
+export function parseRounds(value: string | undefined): number | undefined {
+  const match = (value ?? "").trim().match(/^(\d+)\s*(?:\+\s*(\d+))?$/);
+  if (!match) return undefined;
+  return Number(match[1]) + Math.min(Number(match[2] ?? 0), 999) / 1000;
 }
 
 function measurementOf(type: string, unit: string): Measurement {
@@ -214,12 +223,14 @@ export function parseHistoryRecords(rows: string[][], athleteId: string): Histor
 function metricOf({ measurement, withE1rm }: CatalogExercise): Metric {
   if (measurement === "REPS") return "reps";
   if (measurement === "TIME") return "time";
+  if (measurement === "ROUNDS") return "rounds";
   return withE1rm ? "e1rm" : "load";
 }
 
 function toSet(exercise: CatalogExercise, record: HistoryRecord): HistorySet {
   const { at, set, load, reps } = record;
   if (exercise.measurement === "TIME") return { at, set, seconds: parseDuration(record.result) };
+  if (exercise.measurement === "ROUNDS") return { at, set, rounds: parseRounds(record.result) };
   if (exercise.measurement === "REPS") {
     // Reps-only sets keep the count in REPS_REALES; RESULTADO has it too when UNIDAD is REPS.
     return { at, set, load, reps: reps ?? (record.unit === "REPS" ? parseDecimal(record.result) : undefined) };
@@ -234,6 +245,7 @@ const VALUE: Record<Metric, (set: HistorySet) => number | undefined> = {
   load: (set) => set.load,
   reps: (set) => set.reps,
   time: (set) => set.seconds,
+  rounds: (set) => set.rounds,
 };
 
 const max = (values: (number | undefined)[]) => {

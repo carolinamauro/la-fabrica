@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type KeyboardEvent } from "react";
-import { saveSetsAction } from "@/app/actions";
+import { saveCrossfitSetsAction, saveSetsAction } from "@/app/actions";
 import { chime, unlockAudio, vibrate } from "@/lib/feedback";
 import type { ExerciseNote, PersonalRecord, SetResult } from "@/lib/results";
 import { useCelebrate, type Cheer } from "./Celebration";
@@ -29,6 +29,10 @@ type Props = {
   note: string;
   /** Their latest note on it from another day, as a reminder. */
   previousNote?: ExerciseNote;
+  /** A lift of a CrossFit day: saved to the athlete's CrossFit log instead of their sheet. */
+  crossfit?: { day: string; entry: string };
+  /** Reps of the line ("4 BACK SQUAT"), suggested in empty series. */
+  repsHint?: number;
 };
 
 /** "¡Nuevo PR! 105 kg · antes 100 kg". */
@@ -162,7 +166,7 @@ function PreviousNote({ previous }: { previous: ExerciseNote }) {
  * Carga + Reps per series (like MI_PLANIFICACION columns I–T), opened on demand. Each series has
  * its own check that saves it right away and starts the rest; "Guardar" saves everything and the note.
  */
-export function SetLogger({ week, day, name, order, setCount, rest, saved, note, previousNote }: Props) {
+export function SetLogger({ week, day, name, order, setCount, rest, saved, note, previousNote, crossfit, repsHint }: Props) {
   const router = useRouter();
   const startRest = useStartRest();
   const celebrate = useCelebrate();
@@ -203,9 +207,14 @@ export function SetLogger({ week, day, name, order, setCount, rest, saved, note,
       // ones still empty or holding the copied value, never a value typed or saved on purpose.
       const copied = index === 0 ? current[0][field] : null;
       return current.map((row, i) => {
+        // A load typed on a line that says its reps ("4 BACK SQUAT") gets those reps.
+        if (i === index && field === "load" && value && !row.reps && repsHint) return { ...row, load: value, reps: String(repsHint) };
         if (i === index) return { ...row, [field]: value };
         const kept = isFilled(row) && sameRow(row, lastSaved[i]);
-        if (copied !== null && !kept && (row[field] === "" || row[field] === copied)) return { ...row, [field]: value };
+        if (copied !== null && !kept && (row[field] === "" || row[field] === copied)) {
+          const reps = field === "load" && value && !row.reps && repsHint ? { reps: String(repsHint) } : {};
+          return { ...row, [field]: value, ...reps };
+        }
         return row;
       });
     });
@@ -213,6 +222,9 @@ export function SetLogger({ week, day, name, order, setCount, rest, saved, note,
   }
 
   const list = useRef<HTMLUListElement>(null);
+
+  const send = (sets: SetResult[], note?: string) =>
+    crossfit ? saveCrossfitSetsAction({ ...crossfit, sets, note }) : saveSetsAction({ week, day, name, order, sets, note });
 
   function focusLoad(index: number) {
     const next = list.current?.querySelectorAll<HTMLInputElement>("input[data-load]")[index];
@@ -259,12 +271,13 @@ export function SetLogger({ week, day, name, order, setCount, rest, saved, note,
       vibrate(35);
       chime();
       const isLast = rows.every((r, i) => i === index || isDone(i));
-      if (!isLast) startRest(durationFromText(rest) ?? DEFAULT_REST_SECONDS, `${name} · serie ${index + 2}`);
+      // CrossFit parts run on their own clock (EMOM, E3MO3M): no rest countdown.
+      if (!isLast && !crossfit) startRest(durationFromText(rest) ?? DEFAULT_REST_SECONDS, `${name} · serie ${index + 2}`);
       (document.activeElement as HTMLElement | null)?.blur();
     }
 
     try {
-      const result = await saveSetsAction({ week, day, name, order, sets: [set] });
+      const result = await send([set as SetResult]);
       if (!result.ok) throw new Error(result.error);
       if (result.record) celebrate(recordCheer(result.record));
       router.refresh();
@@ -307,7 +320,7 @@ export function SetLogger({ week, day, name, order, setCount, rest, saved, note,
     const snapshot = rows;
     const savedNote = noteText.trim();
     try {
-      const result = await saveSetsAction({ week, day, name, order, sets, note: savedNote });
+      const result = await send(sets, savedNote);
       if (!result.ok) return setStatus({ kind: "error", message: result.error });
       setLastSaved(snapshot);
       setNoteText(savedNote);
@@ -429,6 +442,7 @@ export function SetLogger({ week, day, name, order, setCount, rest, saved, note,
                     enterKeyHint={i < rows.length - 1 ? "next" : "done"}
                     className={input}
                     value={row.reps}
+                    placeholder={repsHint ? String(repsHint) : undefined}
                     onChange={(e) => update(i, "reps", e.target.value)}
                     onKeyDown={(e) => nextLoad(e, i)}
                   />

@@ -94,6 +94,7 @@ function ExerciseItem({
       <li className={`py-2 ${SECTION.test(name) ? "pt-4 font-display text-lg font-bold tracking-wide text-accent first:pt-2" : ""}`}>
         <LinkedText text={name} />
         <TimerLink text={name} />
+        {extra?.(exercise)}
       </li>
     );
   }

@@ -30,12 +30,12 @@ Mobile web app where athletes see their training plan (read from the coach's Goo
    If the project has no web app yet: Project settings → General → Add app → Web, and copy `apiKey`, `authDomain`, `projectId`.
    `localhost` is already an authorized domain; nothing else to configure for local use.
 
-   Logros (goals and badges) live in Firestore, written only by the server with the same service account:
+   Logros (goals and badges) and what athletes log on the shared CrossFit plan (series of its lifts, WOD results: `athletes/{ID}/crossfit/{week__day__content}`) live in Firestore, written only by the server with the same service account:
    1. Firebase console → **Firestore Database** → **Create database** (production mode, region `southamerica-east1`).
    2. Firestore → **Rules**: paste [firestore.rules](firestore.rules) (denies every browser) → Publish.
    3. Google Cloud console → **IAM** of the Firebase project → **Grant access** → the service account email → role **Cloud Datastore User**.
    Optional: `FIRESTORE_PROJECT_ID=` when Firestore is in a project other than `NEXT_PUBLIC_FIREBASE_PROJECT_ID`.
-   Without it the app still works: streaks, PRs and badges are worked out from REGISTRO_PLANIFICACION; goals just can't be saved.
+   Without it the app still works: streaks, PRs and badges are worked out from REGISTRO_PLANIFICACION; goals just can't be saved, and CrossFit days can't be logged.
 
 2. `npm install`
 3. `npm run dev` → http://localhost:3000

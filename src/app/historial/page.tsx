@@ -7,7 +7,7 @@ import { PlanSwitcher } from "@/components/PlanSwitcher";
 import { findAthleteByEmail } from "@/lib/athletes";
 import { defaultExercise } from "@/lib/history";
 import { getHistory } from "@/lib/history-data";
-import { getAvailablePlans } from "@/lib/plans";
+import { getAvailablePlans, hasHistory } from "@/lib/plans";
 import { getSession } from "@/lib/session";
 
 function decode(value: string | undefined): string | undefined {
@@ -22,10 +22,11 @@ function decode(value: string | undefined): string | undefined {
 export default async function HistoryPage() {
   const session = await getSession();
   const athlete = session ? await findAthleteByEmail(session.email) : null;
-  // Only athletes with a file of their own have a REGISTRO_PLANIFICACION.
-  if (!athlete?.spreadsheetId) redirect("/");
+  if (!athlete) redirect("/");
 
   const [plans, history, cookieStore] = await Promise.all([getAvailablePlans(athlete), getHistory(athlete), cookies()]);
+  // Results come from the athlete's own file (REGISTRO_PLANIFICACION) or their CrossFit log.
+  if (!hasHistory(athlete, plans)) redirect("/");
   const remembered = cookieStore.get(HISTORY_COOKIE)?.value;
   const initial = history && defaultExercise(history, decode(remembered));
 
@@ -35,7 +36,9 @@ export default async function HistoryPage() {
         <HistoryView history={history} initial={initial} />
       ) : (
         <Message title="Todavía no hay ejercicios en tu historial">
-          Tu coach elige qué ejercicios se siguen en la planilla (catálogo de ejercicios).
+          {athlete.spreadsheetId
+            ? "Tu coach elige qué ejercicios se siguen en la planilla (catálogo de ejercicios)."
+            : "Cargá tus series y resultados en los días de CrossFit y aparecen acá."}
         </Message>
       )}
     </AppShell>

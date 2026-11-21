@@ -4,30 +4,35 @@ import type { Block } from "@/lib/types";
 import { Chips } from "./Chips";
 import { DayTitle } from "./DayTitle";
 import { homeHref, prettyLabel } from "./format";
+import { BlockRing, DayProgress } from "./ProgressRing";
 import { SetLogger } from "./SetLogger";
 import { WorkoutBlocks } from "./WorkoutBlocks";
 
-/** "3/8" logged series of the block, solid teal once every prescribed series is in. */
-function BlockProgress({ block, saved }: { block: Block; saved: SavedResults }) {
+/** Logged and prescribed series of a block. */
+function blockSeries(block: Block, saved: SavedResults) {
   const total = block.exercises.reduce((sum, e) => sum + setCount(e.sets), 0);
-  const done = block.exercises.reduce((sum, e) => sum + (saved[resultKey(e.name)]?.length ?? 0), 0);
+  // Extra series beyond the prescribed ones don't push a block past complete.
+  const done = block.exercises.reduce((sum, e) => sum + Math.min(saved[resultKey(e.name)]?.length ?? 0, setCount(e.sets)), 0);
+  return { done, total };
+}
+
+/** "3/8" logged series of the block in a ring that fills, glowing once every prescribed series is in. */
+function BlockProgress({ block, saved }: { block: Block; saved: SavedResults }) {
+  const { done, total } = blockSeries(block, saved);
   if (!total) return null;
-  const complete = done >= total;
-  return (
-    <span
-      className={`shrink-0 rounded-md px-2 py-1 font-display text-base font-bold tabular-nums ${
-        complete ? "bg-accent text-background" : done ? "bg-accent-soft text-accent" : "text-muted"
-      }`}
-    >
-      {complete ? "✓ " : ""}
-      {done}/{total}
-    </span>
-  );
+  return <BlockRing done={done} total={total} />;
 }
 
 export function PersonalizedView({ plan, saved }: { plan: PersonalizedPlan; saved: SavedDay }) {
   const { weeks, selected, workout } = plan;
   const days = weeks.find((w) => w.week === selected.week)?.days ?? [];
+  const series = workout.blocks.map((block) => blockSeries(block, saved.sets)).filter(({ total }) => total > 0);
+  const day = {
+    done: series.reduce((sum, s) => sum + s.done, 0),
+    total: series.reduce((sum, s) => sum + s.total, 0),
+    blocksDone: series.filter((s) => s.done >= s.total).length,
+    blocks: series.length,
+  };
 
   return (
     <>
@@ -48,6 +53,7 @@ export function PersonalizedView({ plan, saved }: { plan: PersonalizedPlan; save
         }))}
       />
       <DayTitle eyebrow={prettyLabel(selected.week)} title={prettyLabel(selected.day)} />
+      <DayProgress key={`${selected.week}-${selected.day}`} {...day} />
       <WorkoutBlocks
         blocks={workout.blocks}
         renderAside={(block) => <BlockProgress block={block} saved={saved.sets} />}
@@ -61,6 +67,7 @@ export function PersonalizedView({ plan, saved }: { plan: PersonalizedPlan; save
             name={exercise.name}
             order={exercise.order}
             setCount={setCount(exercise.sets)}
+            rest={exercise.rest}
             saved={saved.sets[resultKey(exercise.name)] ?? []}
             note={saved.notes[resultKey(exercise.name)]?.note ?? ""}
             previousNote={saved.notes[resultKey(exercise.name)]?.previous}

@@ -15,6 +15,7 @@ import {
   type TimerConfig,
   type TimerMode,
 } from "@/lib/timer";
+import { beep, unlockAudio } from "@/lib/feedback";
 import { DayTitle } from "./DayTitle";
 import { ChevronIcon } from "./icons";
 import { Sheet } from "./Sheet";
@@ -35,37 +36,8 @@ const PHASE_LABEL: Record<Phase, string> = {
   groupRest: "Descanso",
 };
 
-// --- Sound (Web Audio beeps; iOS only plays them after the context is resumed on a tap) ---
-
-let audio: AudioContext | null = null;
-
-function unlockAudio() {
-  // iOS: play as media (media volume, and not muted by the silent switch) instead of as an effect.
-  const session = (navigator as { audioSession?: { type: string } }).audioSession;
-  if (session) session.type = "playback";
-  audio ??= new AudioContext();
-  void audio.resume();
-}
-
-function beep(frequency: number, seconds: number) {
-  if (!audio) return;
-  const osc = audio.createOscillator();
-  const gain = audio.createGain();
-  osc.type = "square";
-  osc.frequency.value = frequency;
-  // Full scale and held (only the tail fades): a square wave can't get louder, and it has to cut
-  // through gym music.
-  const now = audio.currentTime;
-  gain.gain.setValueAtTime(1, now);
-  gain.gain.setValueAtTime(1, now + seconds * 0.75);
-  gain.gain.exponentialRampToValueAtTime(0.001, now + seconds);
-  osc.connect(gain).connect(audio.destination);
-  osc.start();
-  osc.stop(audio.currentTime + seconds);
-}
-
 /** Keeps the phone screen on while the clock runs (where the browser supports it). */
-function useWakeLock(active: boolean) {
+export function useWakeLock(active: boolean) {
   useEffect(() => {
     if (!active || !("wakeLock" in navigator)) return;
     let lock: WakeLockSentinel | undefined;

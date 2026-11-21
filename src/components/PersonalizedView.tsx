@@ -4,6 +4,7 @@ import type { Block } from "@/lib/types";
 import { Chips } from "./Chips";
 import { DayTitle } from "./DayTitle";
 import { homeHref, prettyLabel } from "./format";
+import { DaySwipe, Slide } from "./DayNav";
 import { BlockRing, DayProgress } from "./ProgressRing";
 import { SetLogger } from "./SetLogger";
 import { WorkoutBlocks } from "./WorkoutBlocks";
@@ -33,6 +34,11 @@ export function PersonalizedView({ plan, saved }: { plan: PersonalizedPlan; save
     blocksDone: series.filter((s) => s.done >= s.total).length,
     blocks: series.length,
   };
+  // Every day in plan order, so a swipe can cross into the next or previous week.
+  const sequence = weeks.flatMap((w) => w.days.map((d) => ({ week: w.week, day: d })));
+  const at = sequence.findIndex((s) => s.week === selected.week && s.day === selected.day);
+  const previous = at > 0 ? sequence[at - 1] : undefined;
+  const next = at >= 0 && at < sequence.length - 1 ? sequence[at + 1] : undefined;
 
   return (
     <>
@@ -52,28 +58,34 @@ export function PersonalizedView({ plan, saved }: { plan: PersonalizedPlan; save
           active: day === selected.day,
         }))}
       />
-      <DayTitle eyebrow={prettyLabel(selected.week)} title={prettyLabel(selected.day)} />
-      <DayProgress key={`${selected.week}-${selected.day}`} {...day} />
-      <WorkoutBlocks
-        blocks={workout.blocks}
-        renderAside={(block) => <BlockProgress block={block} saved={saved.sets} />}
-        calculator={{ bestLoads: saved.bestLoads, canSave: true }}
-        renderExtra={(exercise) => (
-          <SetLogger
-            // Remount when the day changes so inputs show that day's values.
-            key={`${selected.week}-${selected.day}-${exercise.order}-${exercise.name}`}
-            week={selected.week}
-            day={selected.day}
-            name={exercise.name}
-            order={exercise.order}
-            setCount={setCount(exercise.sets)}
-            rest={exercise.rest}
-            saved={saved.sets[resultKey(exercise.name)] ?? []}
-            note={saved.notes[resultKey(exercise.name)]?.note ?? ""}
-            previousNote={saved.notes[resultKey(exercise.name)]?.previous}
-          />
-        )}
-      />
+      <DaySwipe previous={previous && homeHref(previous)} next={next && homeHref(next)}>
+        <Slide id={`${selected.week}-${selected.day}`}>
+          <div className="flex flex-col gap-4">
+            <DayTitle eyebrow={prettyLabel(selected.week)} title={prettyLabel(selected.day)} />
+            <DayProgress {...day} />
+            <WorkoutBlocks
+              blocks={workout.blocks}
+              renderAside={(block) => <BlockProgress block={block} saved={saved.sets} />}
+              calculator={{ bestLoads: saved.bestLoads, canSave: true }}
+              renderExtra={(exercise) => (
+                <SetLogger
+                  // Remount when the day changes so inputs show that day's values.
+                  key={`${selected.week}-${selected.day}-${exercise.order}-${exercise.name}`}
+                  week={selected.week}
+                  day={selected.day}
+                  name={exercise.name}
+                  order={exercise.order}
+                  setCount={setCount(exercise.sets)}
+                  rest={exercise.rest}
+                  saved={saved.sets[resultKey(exercise.name)] ?? []}
+                  note={saved.notes[resultKey(exercise.name)]?.note ?? ""}
+                  previousNote={saved.notes[resultKey(exercise.name)]?.previous}
+                />
+              )}
+            />
+          </div>
+        </Slide>
+      </DaySwipe>
     </>
   );
 }

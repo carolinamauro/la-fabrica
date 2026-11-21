@@ -98,12 +98,14 @@ function SavedSummary({ rows, total }: { rows: Row[]; total: number }) {
   // Read-only data, so a thin rail per series instead of boxes that look tappable.
   return (
     <ol aria-label="Series cargadas" className="grid flex-1 grid-cols-[repeat(auto-fill,minmax(4.75rem,1fr))] gap-x-3 gap-y-2">
-      {filled.map(({ row, set }, i) => (
+      {/* Shown as they are on the first render; series added later fade in. */}
+      <AnimatePresence initial={false}>
+      {filled.map(({ row, set }) => (
         <motion.li
           key={set}
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring, delay: i * 0.04 }}
+          transition={spring}
           className="border-l-2 border-accent/60 pl-2 leading-none"
         >
           <span className="block text-[0.65rem] font-semibold tracking-widest text-muted uppercase">Serie {set}</span>
@@ -124,6 +126,7 @@ function SavedSummary({ rows, total }: { rows: Row[]; total: number }) {
           </span>
         </motion.li>
       ))}
+      </AnimatePresence>
     </ol>
   );
 }

@@ -54,12 +54,10 @@ export function DayProgress({ done, total, blocksDone, blocks }: { done: number;
   const complete = done >= total;
   const percent = Math.round((Math.min(done, total) / total) * 100);
   return (
-    <motion.section
+    // Rendered on the server visible (no fade-in waiting for JavaScript); the ring's fill is the motion.
+    <section
       aria-label="Progreso del día"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 300, damping: 28 }}
-      className={`relative mb-3 flex items-center gap-4 overflow-hidden rounded-2xl border p-3 transition-colors ${
+      className={`relative flex items-center gap-4 overflow-hidden rounded-2xl border p-3 transition-colors ${
         complete ? "border-accent/60 bg-accent-soft" : "border-line bg-card/70"
       }`}
     >
@@ -91,6 +89,6 @@ export function DayProgress({ done, total, blocksDone, blocks }: { done: number;
           <span className="font-semibold text-foreground">{Math.min(done, total)}</span> de {total} series · {blocksDone}/{blocks} bloques
         </p>
       </div>
-    </motion.section>
+    </section>
   );
 }

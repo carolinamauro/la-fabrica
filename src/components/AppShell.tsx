@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { signOutAction } from "@/app/actions";
 import { LogoMark, Wordmark } from "./Brand";
+import { Slide } from "./DayNav";
 import { TimerIcon } from "./icons";
 import { InstallApp } from "./InstallApp";
 import { KeepFresh } from "./KeepFresh";
@@ -17,18 +18,25 @@ export function AppShell({
   nav,
   children,
   bottom,
+  section = "page",
 }: {
   name?: string;
   nav?: ReactNode;
   children: ReactNode;
   bottom?: ReactNode;
+  /** Changing it within a page (CrossFit's Entrenamiento / Anexo) slides the content like a new section. */
+  section?: string;
 }) {
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col">
       <KeepFresh />
       <PullToRefresh />
       {/* The iOS status bar is translucent, so the header pads itself below the notch. */}
-      <header className="sticky top-0 z-10 border-b border-line bg-background/90 pt-[env(safe-area-inset-top)] backdrop-blur">
+      {/* Named so it stays put while the content slides between sections (globals.css). */}
+      <header
+        style={{ viewTransitionName: "site-header" }}
+        className="sticky top-0 z-10 border-b border-line bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur-xl"
+      >
         <div className="flex h-14 items-center justify-between px-4">
           <Link href="/" className="flex min-w-0 items-center gap-2">
             <LogoMark size={34} />
@@ -51,11 +59,18 @@ export function AppShell({
 
       <main className={`flex flex-1 flex-col gap-4 px-4 pt-4 ${bottom ? "pb-28" : "pb-10"}`}>
         <InstallApp />
-        {children}
+        {/* page-in: arriving at a section from another route (through its loading screen) fades it up. */}
+        <Slide id={section} className="page-in flex flex-col gap-4">
+          {children}
+        </Slide>
       </main>
 
       {bottom && (
-        <div data-bottom-bar className="fixed inset-x-0 bottom-0 border-t border-line bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+        <div
+          data-bottom-bar
+          style={{ viewTransitionName: "bottom-bar" }}
+          className="fixed inset-x-0 bottom-0 border-t border-line bg-background/80 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl"
+        >
           <div className="mx-auto max-w-lg px-4 py-3">{bottom}</div>
         </div>
       )}

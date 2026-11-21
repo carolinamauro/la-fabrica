@@ -1,8 +1,11 @@
 import Link from "next/link";
+import { ViewTransition } from "react";
 import type { Anexo, CrossfitPlan } from "@/lib/crossfit";
 import { Chips } from "./Chips";
+import { DaySwipe, Slide } from "./DayNav";
 import { DayTitle } from "./DayTitle";
 import { homeHref, prettyLabel } from "./format";
+import { direction } from "./transitions";
 import { WorkoutBlocks } from "./WorkoutBlocks";
 
 // CrossFit plans are shared, so the calculator starts without an RM and saves none.
@@ -18,6 +21,9 @@ function planName(title: string) {
 }
 
 export function CrossfitWorkout({ plan, path = "/" }: { plan: CrossfitPlan; path?: string }) {
+  const at = plan.days.indexOf(plan.selectedDay);
+  const previous = at > 0 ? homeHref({ day: plan.days[at - 1] }, path) : undefined;
+  const next = at >= 0 && at < plan.days.length - 1 ? homeHref({ day: plan.days[at + 1] }, path) : undefined;
   return (
     <>
       <Chips
@@ -28,8 +34,14 @@ export function CrossfitWorkout({ plan, path = "/" }: { plan: CrossfitPlan; path
           active: day === plan.selectedDay,
         }))}
       />
-      <DayTitle eyebrow={plan.workout.week && prettyLabel(plan.workout.week)} title={prettyLabel(plan.selectedDay)} />
-      <WorkoutBlocks blocks={plan.workout.blocks} calculator={CROSSFIT_CALCULATOR} />
+      <DaySwipe previous={previous} next={next}>
+        <Slide id={plan.selectedDay}>
+          <div className="flex flex-col gap-4">
+            <DayTitle eyebrow={plan.workout.week && prettyLabel(plan.workout.week)} title={prettyLabel(plan.selectedDay)} />
+            <WorkoutBlocks blocks={plan.workout.blocks} calculator={CROSSFIT_CALCULATOR} />
+          </div>
+        </Slide>
+      </DaySwipe>
     </>
   );
 }
@@ -78,7 +90,9 @@ export function AnexoView({
               active: w.week === selected.week,
             }))}
           />
-          <WorkoutBlocks blocks={selected.blocks.map((b) => ({ ...b, title: prettyLabel(b.title) }))} calculator={CROSSFIT_CALCULATOR} />
+          <Slide id={`${index}-${selected.week}`}>
+            <WorkoutBlocks blocks={selected.blocks.map((b) => ({ ...b, title: prettyLabel(b.title) }))} calculator={CROSSFIT_CALCULATOR} />
+          </Slide>
         </>
       ) : (
         <p className="text-muted">Este plan todavía no tiene semanas cargadas.</p>
@@ -92,18 +106,26 @@ export function CrossfitTabs({ active, path = "/" }: { active: CrossfitTab; path
     { id: "entrenamiento", label: "Entrenamiento", href: homeHref({}, path) },
     { id: "anexo", label: "Anexo", href: homeHref({ tab: "anexo" }, path) },
   ];
+  const current = tabs.findIndex((tab) => tab.id === active);
+  // A segmented control: the teal pill glides to the tab picked, and the page slides that way.
   return (
-    <nav aria-label="Secciones" className="grid grid-cols-2 gap-2">
-      {tabs.map((tab) => (
+    <nav aria-label="Secciones" className="grid grid-cols-2 gap-1 rounded-2xl border border-line bg-card/70 p-1">
+      {tabs.map((tab, i) => (
         <Link
           key={tab.id}
           href={tab.href}
+          transitionTypes={direction(i, current)}
           aria-current={tab.id === active ? "page" : undefined}
-          className={`flex h-12 items-center justify-center rounded-lg font-display text-lg font-bold tracking-wider uppercase ${
-            tab.id === active ? "bg-accent text-background" : "border border-line bg-card text-muted"
+          className={`relative flex h-11 items-center justify-center rounded-xl font-display text-lg font-bold tracking-wider uppercase transition-colors ${
+            tab.id === active ? "text-background" : "text-muted active:text-foreground"
           }`}
         >
-          {tab.label}
+          {tab.id === active && (
+            <ViewTransition name="crossfit-tab" share="chip" default="none">
+              <span aria-hidden className="absolute inset-0 rounded-xl bg-accent shadow-[0_6px_20px_-8px_var(--accent)]" />
+            </ViewTransition>
+          )}
+          <span className="relative">{tab.label}</span>
         </Link>
       ))}
     </nav>

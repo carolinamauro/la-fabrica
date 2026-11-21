@@ -10,7 +10,7 @@ export async function CrossfitScreen({ name, params, path, nav }: { name: string
   const tab = params.tab === "anexo" ? "anexo" : "entrenamiento";
   const plan = await getCrossfitPlan(params.day);
   return (
-    <AppShell name={name} nav={nav} bottom={<CrossfitTabs active={tab} path={path} />}>
+    <AppShell name={name} nav={nav} section={tab} bottom={<CrossfitTabs active={tab} path={path} />}>
       {!plan ? (
         <Message title="Todavía no hay entrenamientos cargados" />
       ) : tab === "anexo" ? (

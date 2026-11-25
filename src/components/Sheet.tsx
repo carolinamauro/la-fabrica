@@ -34,7 +34,7 @@ export function Sheet({ label, onDismiss, className, children }: { label: string
 
   return (
     // overflow-hidden: focusing a field inside never scrolls this frame (which would push the panel off the top).
-    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden pt-[calc(env(safe-area-inset-top)+1.5rem)]" onClick={dismiss}>
+    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden pt-[calc(env(safe-area-inset-top)+1.5rem)] short:pt-2" onClick={dismiss}>
       <motion.div
         aria-hidden
         className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
@@ -54,7 +54,7 @@ export function Sheet({ label, onDismiss, className, children }: { label: string
         onDragEnd={(_, info) => {
           if (info.offset.y > CLOSE_DISTANCE || info.velocity.y > CLOSE_VELOCITY) dismiss();
         }}
-        className={`relative mx-auto flex w-full max-w-lg flex-1 flex-col overflow-y-auto overscroll-contain rounded-t-3xl border border-b-0 border-line pb-[calc(env(safe-area-inset-bottom)+1.5rem)] shadow-[0_-20px_60px_-20px_rgb(20_210_189/0.18)] ${className}`}
+        className={`relative mx-auto flex w-full max-w-lg flex-1 flex-col short:max-w-2xl overflow-y-auto overscroll-contain rounded-t-3xl border border-b-0 border-line pb-[calc(env(safe-area-inset-bottom)+1.5rem)] shadow-[0_-20px_60px_-20px_rgb(20_210_189/0.18)] ${className}`}
       >
         {/* Grab bar: drag from here to close. */}
         <div

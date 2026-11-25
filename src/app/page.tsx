@@ -7,7 +7,7 @@ import { getAchievements } from "@/lib/achievements-data";
 import { findAthleteByEmail } from "@/lib/athletes";
 import { getPersonalizedPlan } from "@/lib/personalized";
 import { getAvailablePlans, hasHistory } from "@/lib/plans";
-import { getSavedResults } from "@/lib/results";
+import { getSavedPlan } from "@/lib/results";
 import { getSession } from "@/lib/session";
 
 /** The athlete's main plan, the one set in the master ATLETAS tab. */
@@ -40,7 +40,10 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
       return null;
     }),
   ]);
-  const saved = plan ? await getSavedResults(athlete, plan.selected) : { sets: {}, notes: {}, bestLoads: {} };
+  // Every day's results at once: switching weeks and days happens on the phone, with no new load.
+  const saved = plan
+    ? await getSavedPlan(athlete, plan.weeks.flatMap((w) => w.days.map((day) => ({ week: w.week, day }))))
+    : { days: {}, bestLoads: {} };
   return (
     <AppShell name={athlete.firstName} nav={<PlanSwitcher plans={plans} active="PERSONALIZED" history={hasHistory(athlete, plans)} />}>
       {plan ? (

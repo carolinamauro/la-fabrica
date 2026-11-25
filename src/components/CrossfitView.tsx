@@ -1,19 +1,14 @@
 import Link from "next/link";
 import { ViewTransition } from "react";
-import type { Anexo, CrossfitPlan } from "@/lib/crossfit";
-import { loggableItems, type CrossfitLog } from "@/lib/crossfit-log";
-import type { Exercise } from "@/lib/types";
-import { SetLogger } from "./SetLogger";
-import { WodLogger } from "./WodLogger";
+import type { Anexo } from "@/lib/crossfit";
 import { Chips } from "./Chips";
-import { DaySwipe, Slide } from "./DayNav";
+import { Slide } from "./DayNav";
 import { DayTitle } from "./DayTitle";
 import { homeHref, prettyLabel } from "./format";
 import { direction } from "./transitions";
 import { WorkoutBlocks } from "./WorkoutBlocks";
 
-// CrossFit plans are shared, so the calculator starts without an RM and saves none.
-const CROSSFIT_CALCULATOR = { bestLoads: {}, canSave: false };
+import { CROSSFIT_CALCULATOR } from "./CrossfitDays";
 
 export type CrossfitTab = "entrenamiento" | "anexo";
 
@@ -22,67 +17,6 @@ function planName(title: string) {
   const name = title.replace(/^PLAN DE\s+/i, "").toLowerCase();
   const pretty = name === "gimnasticos" ? "gimnásticos" : name;
   return pretty.charAt(0).toUpperCase() + pretty.slice(1);
-}
-
-/**
- * The series logger on each lift and the result logger on each WOD of the day, with what the
- * athlete logged (`log`; undefined when Firestore can't be reached: then nothing can be logged).
- */
-function crossfitLoggers(plan: CrossfitPlan, log: CrossfitLog | undefined) {
-  const items = loggableItems(plan.workout);
-  return function CrossfitLogger(exercise: Exercise) {
-    const item = items.get(exercise);
-    if (!item || !log) return null;
-    const saved = log.entries[item.id];
-    if (item.kind === "wod") {
-      return (
-        <WodLogger
-          key={`${log.key}-${item.id}`}
-          day={plan.selectedDay}
-          entry={item.id}
-          title={item.name}
-          saved={saved?.kind === "wod" ? { score: saved.score, rx: saved.rx, note: saved.note } : undefined}
-        />
-      );
-    }
-    return (
-      <SetLogger
-        key={`${log.key}-${item.id}`}
-        week={plan.workout.week}
-        day={plan.selectedDay}
-        name={item.exercise}
-        setCount={item.sets}
-        saved={saved?.kind === "lift" ? saved.sets.map(({ set, load, reps }) => ({ set, load, reps })) : []}
-        note={saved?.kind === "lift" ? (saved.note ?? "") : ""}
-        crossfit={{ day: plan.selectedDay, entry: item.id }}
-        repsHint={item.reps}
-      />
-    );
-  };
-}
-
-export function CrossfitWorkout({ plan, log, path = "/" }: { plan: CrossfitPlan; log?: CrossfitLog; path?: string }) {
-  const at = plan.days.indexOf(plan.selectedDay);
-  const previous = at > 0 ? homeHref({ day: plan.days[at - 1] }, path) : undefined;
-  const next = at >= 0 && at < plan.days.length - 1 ? homeHref({ day: plan.days[at + 1] }, path) : undefined;
-  return (
-    <>
-      <Chips
-        label="Días"
-        items={plan.days.map((day) => ({
-          label: prettyLabel(day),
-          href: homeHref({ day }, path),
-          active: day === plan.selectedDay,
-        }))}
-      />
-      <DaySwipe id={plan.selectedDay} previous={previous} next={next}>
-        <div className="flex flex-col gap-4">
-          <DayTitle eyebrow={plan.workout.week && prettyLabel(plan.workout.week)} title={prettyLabel(plan.selectedDay)} />
-          <WorkoutBlocks blocks={plan.workout.blocks} calculator={CROSSFIT_CALCULATOR} renderExtra={crossfitLoggers(plan, log)} />
-        </div>
-      </DaySwipe>
-    </>
-  );
 }
 
 export function AnexoView({

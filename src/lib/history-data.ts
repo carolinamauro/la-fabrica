@@ -21,7 +21,7 @@ export async function getTraining(athlete: Athlete): Promise<Training> {
   const [registro, catalog, logs] = await Promise.all([
     athlete.spreadsheetId ? readRange(athlete.spreadsheetId, REGISTRO_RANGE) : Promise.resolve([]),
     athlete.spreadsheetId ? readRange(athlete.spreadsheetId, CATALOG_RANGE) : Promise.resolve([]),
-    listCrossfitLogs(athlete.id),
+    listCrossfitLogs(athlete.id).then((logs) => logs ?? []),
   ]);
   const sheetCatalog = parseHistoryCatalog(catalog, CATALOG_TYPES[athlete.planType]);
   const records = [...(registro.length ? parseHistoryRecords(registro, athlete.id) : []), ...crossfitRecords(logs)];

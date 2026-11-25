@@ -9,7 +9,8 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     scope: "/",
     display: "standalone",
-    orientation: "portrait",
+    // The installed app turns with the phone (Android locks it to portrait otherwise).
+    orientation: "any",
     background_color: "#0a0c0c",
     theme_color: "#0a0c0c",
     icons: [

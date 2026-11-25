@@ -30,7 +30,7 @@ async function findItem(day: string, id: string) {
 async function liftHistory(athlete: Athlete, exercise: string): Promise<Pick<SetResult, "load" | "reps">[]> {
   const [registro, logs] = await Promise.all([
     athlete.spreadsheetId ? readRange(athlete.spreadsheetId, REGISTRO_RANGE).catch(() => []) : Promise.resolve([]),
-    listCrossfitLogs(athlete.id),
+    listCrossfitLogs(athlete.id).then((logs) => logs ?? []),
   ]);
   const sheet = registro.length ? parseHistoryRecords(registro, athlete.id) : [];
   return [...sheet, ...crossfitRecords(logs)].filter((r) => r.exercise === exercise);

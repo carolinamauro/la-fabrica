@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { timerFromExercise, timerFromText } from "@/lib/timer";
 import type { Block, Exercise } from "@/lib/types";
+import { ExerciseName } from "./ExerciseName";
 import { ExerciseVideoButton } from "./ExerciseVideoButton";
 import { ChevronIcon, TimerIcon } from "./icons";
 import { LoadCalculator } from "./LoadCalculator";
@@ -92,7 +93,8 @@ function ExerciseItem({
   if (!volume && !tags.length && !rest && !notes && !order && !video) {
     return (
       <li className={`py-2 ${SECTION.test(name) ? "pt-4 font-display text-lg font-bold tracking-wide text-accent first:pt-2" : ""}`}>
-        <LinkedText text={name} />
+        {/* A movement can be copied or looked up; headers ("E3MO3M X 5 RONDAS:") and rep schemes can't. */}
+        {SECTION.test(name) || !/[A-ZÁÉÍÓÚÑ]{3}/i.test(name.replace(/https?:\/\/\S+/g, "")) ? <LinkedText text={name} /> : <ExerciseName text={name} />}
         <TimerLink text={name} />
         {extra?.(exercise)}
       </li>
@@ -105,7 +107,7 @@ function ExerciseItem({
         <div className="min-w-0">
           {showOrder && <p className="font-display text-sm font-bold tracking-widest text-accent">{order}</p>}
           <p className="font-display text-xl leading-tight font-bold uppercase">
-            <LinkedText text={name} />
+            <ExerciseName text={name} />
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
@@ -164,7 +166,8 @@ export function WorkoutBlocks({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    // On its side, two columns of blocks (each opens in its own column).
+    <div className="flex flex-col gap-3 short:grid short:grid-cols-2 short:items-start">
       {blocks.map((block, i) => {
         const { badge, name } = blockLabels(block.title);
         return (

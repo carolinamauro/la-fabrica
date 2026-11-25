@@ -183,7 +183,8 @@ export function parseAnexo(rows: string[][]): Anexo {
   return anexo;
 }
 
-export type CrossfitPlan = { days: string[]; selectedDay: string; workout: Workout; anexo: Anexo };
+/** Every day at once (`workouts`, by day), so the phone switches days without a new load. */
+export type CrossfitPlan = { days: string[]; selectedDay: string; workout: Workout; workouts: Record<string, Workout>; anexo: Anexo };
 
 /** The shared CrossFit programming, opened on `requestedDay` if it exists, else the first day. */
 export async function getCrossfitPlan(requestedDay?: string): Promise<CrossfitPlan | null> {
@@ -198,5 +199,11 @@ export async function getCrossfitPlan(requestedDay?: string): Promise<CrossfitPl
   const workout = workouts.find((w) => w.day === label(requestedDay)) ?? workouts[0];
   if (!workout) return null;
 
-  return { days: workouts.map((w) => w.day), selectedDay: workout.day, workout, anexo: parseAnexo(anexoRows) };
+  return {
+    days: workouts.map((w) => w.day),
+    selectedDay: workout.day,
+    workout,
+    workouts: Object.fromEntries(workouts.map((w) => [w.day, w])),
+    anexo: parseAnexo(anexoRows),
+  };
 }

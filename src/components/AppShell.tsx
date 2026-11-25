@@ -28,16 +28,16 @@ export function AppShell({
   section?: string;
 }) {
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-1 flex-col">
+    <div className="mx-auto flex w-full max-w-lg flex-1 flex-col short:max-w-4xl">
       <KeepFresh />
       <PullToRefresh />
       {/* The iOS status bar is translucent, so the header pads itself below the notch. */}
       {/* Named so it stays put while the content slides between sections (globals.css). */}
       <header
         style={{ viewTransitionName: "site-header" }}
-        className="sticky top-0 z-10 border-b border-line bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur-xl"
+        className="sticky top-0 z-10 border-b border-line bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur-xl short:static"
       >
-        <div className="flex h-14 items-center justify-between px-4">
+        <div className="flex h-14 items-center justify-between pr-[max(1rem,env(safe-area-inset-right))] pl-[max(1rem,env(safe-area-inset-left))] short:h-12">
           <Link href="/" className="flex min-w-0 items-center gap-2">
             <LogoMark size={34} />
             <Wordmark className="text-xl whitespace-nowrap" />
@@ -57,7 +57,9 @@ export function AppShell({
         {nav}
       </header>
 
-      <main className={`flex flex-1 flex-col gap-4 px-4 pt-4 ${bottom ? "pb-28" : "pb-10"}`}>
+      <main
+        className={`flex flex-1 flex-col gap-4 pt-4 pr-[max(1rem,env(safe-area-inset-right))] pl-[max(1rem,env(safe-area-inset-left))] ${bottom ? "pb-28 short:pb-20" : "pb-10"}`}
+      >
         <InstallApp />
         {/* page-in: arriving at a section from another route (through its loading screen) fades it up. */}
         <Slide id={section} className="page-in flex flex-col gap-4">
@@ -71,7 +73,7 @@ export function AppShell({
           style={{ viewTransitionName: "bottom-bar" }}
           className="fixed inset-x-0 bottom-0 border-t border-line bg-background/80 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl"
         >
-          <div className="mx-auto max-w-lg px-4 py-3">{bottom}</div>
+          <div className="mx-auto max-w-lg px-4 py-3 short:max-w-4xl short:py-1.5">{bottom}</div>
         </div>
       )}
     </div>

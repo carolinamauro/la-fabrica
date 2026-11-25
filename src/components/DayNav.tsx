@@ -1,10 +1,8 @@
 "use client";
 
 import { animate, motion, useDragControls, useMotionValue } from "motion/react";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, ViewTransition, type PointerEvent, type ReactNode } from "react";
+import { addTransitionType, startTransition, useState, ViewTransition, type PointerEvent, type ReactNode } from "react";
 import { vibrate } from "@/lib/feedback";
-import { BACK, FORWARD } from "./transitions";
 
 const slide = { "nav-forward": "nav-forward", "nav-back": "nav-back", default: "none" };
 
@@ -20,12 +18,31 @@ export function Slide({ id, className, children }: { id: string; className?: str
   );
 }
 
+/**
+ * The day shown, switched right on the phone: every day is already loaded, so changing week or day
+ * doesn't ask the server again. The URL follows (replaced, not pushed), so a reload or pull to
+ * refresh opens the same day.
+ */
+export function useDaySelection<T>(initial: T, toHref: (selected: T) => string) {
+  const [selected, setSelected] = useState(initial);
+  function select(next: T, types: readonly string[] = []) {
+    startTransition(() => {
+      for (const type of types) addTransitionType(type);
+      // A day swiped to from the bottom of a long one starts from its top.
+      if (window.scrollY > 0) window.scrollTo({ top: 0 });
+      setSelected(next);
+    });
+    window.history.replaceState(null, "", toHref(next));
+  }
+  return [selected, select] as const;
+}
+
 // Dragged sideways this far (px), or flicked this fast (px/s), it moves to the next or previous day.
 const SWIPE_DISTANCE = 70;
 const SWIPE_VELOCITY = 450;
 const settle = { type: "spring", stiffness: 500, damping: 40 } as const;
 
-type SwipeProps = { id: string; previous?: string; next?: string; children: ReactNode };
+type SwipeProps = { id: string; onPrevious?: () => void; onNext?: () => void; children: ReactNode };
 
 /**
  * The day (`id`), sliding in like `Slide`, that swipes left for the next day and right for the
@@ -42,18 +59,9 @@ export function DaySwipe({ id, ...props }: SwipeProps) {
   );
 }
 
-function Swipeable({ previous, next, children }: Omit<SwipeProps, "id">) {
-  const router = useRouter();
+function Swipeable({ onPrevious, onNext, children }: Omit<SwipeProps, "id">) {
   const controls = useDragControls();
   const x = useMotionValue(0);
-  const fallback = useRef<number | undefined>(undefined);
-
-  // Swipes open the neighbouring days sooner.
-  useEffect(() => {
-    if (previous) router.prefetch(previous);
-    if (next) router.prefetch(next);
-  }, [router, previous, next]);
-  useEffect(() => () => window.clearTimeout(fallback.current), []);
 
   function start(event: PointerEvent) {
     // Typing, sheets and anything opting out keep their own gestures.
@@ -70,19 +78,17 @@ function Swipeable({ previous, next, children }: Omit<SwipeProps, "id">) {
       dragDirectionLock
       dragMomentum={false}
       dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={{ left: next ? 0.35 : 0.08, right: previous ? 0.35 : 0.08 }}
+      dragElastic={{ left: onNext ? 0.35 : 0.08, right: onPrevious ? 0.35 : 0.08 }}
       onPointerDown={start}
       onDragEnd={(_, info) => {
         const toNext = info.offset.x < -SWIPE_DISTANCE || info.velocity.x < -SWIPE_VELOCITY;
         const toPrevious = info.offset.x > SWIPE_DISTANCE || info.velocity.x > SWIPE_VELOCITY;
-        const href = toNext ? next : toPrevious ? previous : undefined;
+        const go = toNext ? onNext : toPrevious ? onPrevious : undefined;
         // Not far enough: back to the center. Far enough: stay where the finger let go.
-        if (!href) return void animate(x, 0, settle);
+        if (!go) return void animate(x, 0, settle);
         x.stop();
         vibrate(10);
-        router.push(href, { transitionTypes: toNext ? FORWARD : BACK });
-        // Back to the center if the day never changes (offline, an error).
-        fallback.current = window.setTimeout(() => animate(x, 0, settle), 4000);
+        go();
       }}
       // Vertical scrolling stays with the browser; sideways moves are the swipe.
       className="touch-pan-y"

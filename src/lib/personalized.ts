@@ -1,6 +1,6 @@
 import type { Athlete } from "./athletes";
 import { readRange } from "./sheets";
-import type { Block, DaySelection, Exercise, WeekSummary, Workout } from "./types";
+import { dayKey, type Block, type DaySelection, type Exercise, type WeekSummary, type Workout } from "./types";
 import { parseVideo } from "./video";
 
 // Columns are found by their header, so the coach can add or move columns (up to Z).
@@ -132,7 +132,11 @@ export function pickDay(weeks: WeekSummary[], ...candidates: Partial<DaySelectio
   return latest ? { week: latest.week, day: latest.days[0] } : null;
 }
 
-export type PersonalizedPlan = { weeks: WeekSummary[]; selected: DaySelection; workout: Workout };
+/**
+ * Every day of the plan at once (by dayKey), so the phone switches weeks and days without asking
+ * the server again; `selected` is the day to open first.
+ */
+export type PersonalizedPlan = { weeks: WeekSummary[]; selected: DaySelection; workouts: Record<string, Workout> };
 
 /**
  * Plan of a personalized athlete, opened on `requested` if given, else on the week/day
@@ -154,5 +158,6 @@ export async function getPersonalizedPlan(
   const selected = pickDay(weeks, requested, { week: selector[1], day: selector[3] });
   if (!selected) return null;
 
-  return { weeks, selected, workout: buildWorkout(rows, selected.week, selected.day) };
+  const workouts = Object.fromEntries(weeks.flatMap((w) => w.days.map((day) => [dayKey({ week: w.week, day }), buildWorkout(rows, w.week, day)])));
+  return { weeks, selected, workouts };
 }

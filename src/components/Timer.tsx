@@ -377,7 +377,7 @@ function RunningClock({ config, minimized, onMinimize, onExpand, onEnd }: ClockP
       ? formatClock(state.elapsed)
       : formatClock(Math.ceil(state.remaining));
   const progress = Number.isFinite(state.segment.seconds) ? state.elapsed / state.segment.seconds : 0;
-  const control = "h-16 flex-1 rounded-xl font-display text-xl font-extrabold tracking-wider uppercase";
+  const control = "h-16 flex-1 rounded-xl font-display text-xl font-extrabold tracking-wider uppercase short:h-12";
 
   if (minimized) {
     const small = "grid size-12 shrink-0 place-items-center rounded-xl bg-black/15 font-display text-lg font-extrabold uppercase";
@@ -457,10 +457,10 @@ function RunningClock({ config, minimized, onMinimize, onExpand, onEnd }: ClockP
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-center">
-        <p className="font-display text-4xl font-extrabold tracking-[0.2em] uppercase">
+        <p className="font-display text-4xl font-extrabold tracking-[0.2em] uppercase short:text-2xl">
           {state.done ? "¡Terminado!" : PHASE_LABEL[state.segment.phase]}
         </p>
-        <p className="font-display text-[clamp(6rem,30vw,14rem)] leading-none font-extrabold tabular-nums" aria-live="off">
+        <p className="font-display text-[clamp(6rem,30vw,14rem)] leading-none font-extrabold tabular-nums short:text-[clamp(4rem,32dvh,9rem)]" aria-live="off">
           {display}
         </p>
         {!state.done && (state.segment.phase === "setRest" || state.segment.phase === "groupRest") && (
@@ -469,7 +469,7 @@ function RunningClock({ config, minimized, onMinimize, onExpand, onEnd }: ClockP
           </p>
         )}
         {!state.done && !openEnded && (
-          <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-black/20">
+          <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-black/20 short:mt-2">
             <div className="h-full rounded-full bg-current" style={{ width: `${Math.min(100, progress * 100)}%` }} />
           </div>
         )}
@@ -488,11 +488,11 @@ function RunningClock({ config, minimized, onMinimize, onExpand, onEnd }: ClockP
       </div>
 
       {!state.done && (
-        <div className="mb-3 flex gap-3">
+        <div className="mb-3 flex gap-3 short:mb-2">
           <button
             type="button"
             onClick={() => jumpTo(previousWorkIndex(list, state.index))}
-            className="h-12 flex-1 rounded-xl bg-black/15 font-display text-lg font-bold tracking-wider uppercase"
+            className="h-12 flex-1 short:h-10 rounded-xl bg-black/15 font-display text-lg font-bold tracking-wider uppercase"
           >
             ⏮ Anterior
           </button>

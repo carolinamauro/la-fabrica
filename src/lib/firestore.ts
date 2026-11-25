@@ -194,8 +194,8 @@ export async function getCrossfitLog(athleteId: string, key: string): Promise<Cr
   }
 }
 
-/** Every CrossFit log of the athlete (none when Firestore can't be reached). */
-export async function listCrossfitLogs(athleteId: string): Promise<CrossfitLog[]> {
+/** Every CrossFit log of the athlete; null when Firestore can't be reached. */
+export async function listCrossfitLogs(athleteId: string): Promise<CrossfitLog[] | null> {
   const logs: CrossfitLog[] = [];
   try {
     let pageToken: string | undefined;
@@ -212,6 +212,7 @@ export async function listCrossfitLogs(athleteId: string): Promise<CrossfitLog[]
   } catch (error) {
     if (!(error instanceof FirestoreUnavailable)) throw error;
     console.error("listCrossfitLogs:", error.message);
+    return null;
   }
   return logs;
 }

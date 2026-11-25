@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* A phone on its side: little height, so bars get thinner, the page wider and blocks sit in two
+   columns ("short:" classes). */
+@custom-variant short (@media (orientation: landscape) and (max-height: 540px));
+
 /* One dark theme taken from the La Fábrica logo: black, teal and brushed silver (no light mode). */
 :root {
   --background: #0a0c0c;

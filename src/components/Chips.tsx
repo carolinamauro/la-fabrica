@@ -2,7 +2,8 @@ import Link from "next/link";
 import { ViewTransition } from "react";
 import { direction } from "./transitions";
 
-export type Chip = { label: string; href: string; active: boolean };
+/** `onSelect`: picked right on the phone (with the same slide) instead of loading `href`. */
+export type Chip = { label: string; href: string; active: boolean; onSelect?: (types: readonly string[]) => void };
 
 /** "Días" → "dias", a valid view-transition-name. */
 const slug = (text: string) => text.normalize("NFD").replace(/[^a-zA-Z0-9]+/g, "-").toLowerCase();
@@ -21,6 +22,13 @@ export function Chips({ items, label }: { items: Chip[]; label: string }) {
             <Link
               href={item.href}
               transitionTypes={direction(i, active)}
+              onClick={
+                item.onSelect &&
+                ((event) => {
+                  event.preventDefault();
+                  if (!item.active) item.onSelect!(direction(i, active) ?? []);
+                })
+              }
               aria-current={item.active ? "page" : undefined}
               className={`relative flex h-10 items-center rounded-xl px-4 font-display text-base font-bold tracking-wider uppercase transition-colors ${
                 item.active ? "text-background" : "border border-line bg-card/80 text-muted active:border-accent/60 active:text-foreground"

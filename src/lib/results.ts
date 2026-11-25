@@ -1,7 +1,7 @@
 import type { Athlete } from "./athletes";
 import { buildWorkout, MI_FIRST_ROW, MI_RANGE, parsePlanRows, PLAN_RANGE } from "./personalized";
 import { appendRows, readRange, writeCells } from "./sheets";
-import { MAX_NOTE_LENGTH, MAX_SETS, type DaySelection, type Exercise } from "./types";
+import { dayKey, MAX_NOTE_LENGTH, MAX_SETS, type DaySelection, type Exercise } from "./types";
 
 export { MAX_SETS };
 
@@ -20,8 +20,6 @@ export type ExerciseNote = DaySelection & { note: string };
 export type SavedNotes = Record<string, { note: string; previous?: ExerciseNote }>;
 /** Per exercise name (uppercase): the heaviest CARGA ever logged, like HISTORIAL's MEJOR CARGA. */
 export type BestLoads = Record<string, number>;
-/** What the athlete saved for one day, and their best loads (the load calculator's RM). */
-export type SavedDay = { sets: SavedResults; notes: SavedNotes; bestLoads: BestLoads };
 
 // OBJETIVO of a row that is an RM the athlete typed in the load calculator.
 const RM_TARGET = "RM";
@@ -331,20 +329,25 @@ export function sheetLoadCells(sheet: SheetLoads, row: number, sets: SetResult[]
   return [...loadCells, ...noteCell];
 }
 
-export async function getSavedResults(athlete: Athlete, selection: DaySelection): Promise<SavedDay> {
-  if (!athlete.spreadsheetId) return { sets: {}, notes: {}, bestLoads: {} };
+/** What the athlete saved on every day of their plan (by dayKey), and their best loads. */
+export type SavedPlan = { days: Record<string, { sets: SavedResults; notes: SavedNotes }>; bestLoads: BestLoads };
+
+/** The saved results of every given day, from one read of each tab. */
+export async function getSavedPlan(athlete: Athlete, selections: DaySelection[]): Promise<SavedPlan> {
+  if (!athlete.spreadsheetId) return { days: {}, bestLoads: {} };
   // Fresh: the athlete may have just typed or cleared loads in the sheet.
   const [registro, sheetRows] = await Promise.all([
     readRange(athlete.spreadsheetId, REGISTRO_RANGE, { fresh: true }),
     readRange(athlete.spreadsheetId, MI_RANGE, { fresh: true }),
   ]);
-  const sets = parseResults(registro, athlete.id, selection);
-  const notes = parseNotes(registro, athlete.id, selection);
-  const bestLoads = parseBestLoads(registro, athlete.id);
   const sheet = parseSheetLoads(sheetRows);
-  return isOpenDay(sheet, selection)
-    ? { sets: mergeSheetLoads(sets, sheet), notes: mergeSheetNotes(notes, sheet), bestLoads }
-    : { sets, notes, bestLoads };
+  const days: SavedPlan["days"] = {};
+  for (const selection of selections) {
+    const sets = parseResults(registro, athlete.id, selection);
+    const notes = parseNotes(registro, athlete.id, selection);
+    days[dayKey(selection)] = isOpenDay(sheet, selection) ? { sets: mergeSheetLoads(sets, sheet), notes: mergeSheetNotes(notes, sheet) } : { sets, notes };
+  }
+  return { days, bestLoads: parseBestLoads(registro, athlete.id) };
 }
 
 export class ResultError extends Error {}
